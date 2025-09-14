@@ -47,7 +47,7 @@ endif()
 
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall) # -Wextra
 
 # Web Configurations
 if ("${PLATFORM}" STREQUAL "Web")
