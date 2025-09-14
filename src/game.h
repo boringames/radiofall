@@ -1,5 +1,4 @@
-#ifndef GAME_H
-#define GAME_H
+#pragma once
 
 #include <raylib.h>
 #include "core/types.h"
@@ -11,7 +10,7 @@
 enum {
     GRID_CELL_COLOR_START,
     GRID_CELL_BLUE,
-    GRID_CELL_RED, 
+    GRID_CELL_RED,
     GRID_CELL_YELLOW,
     GRID_CELL_COLOR_COUNT,
 };
@@ -26,5 +25,3 @@ void game_init(GameState *g);
 void game_update(GameState *g, f32 dt);
 
 void game_draw(GameState *g, f32 dt);
-
-#endif GAME_H // GAME_H

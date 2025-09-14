@@ -43,9 +43,9 @@ ScreenInfo screen_table[] = {
     { .init = ending_init,   .update = ending_update,   .draw = ending_draw,   .unload = ending_unload,   .finish = ending_finish,   },
 };
 
-void iterate(GameState *g);
+void iterate(void *arg);
 
-b8 MODE_DEBUG = FALSE;
+bool mode_debug = false;
 
 int main(void)
 {
@@ -59,14 +59,14 @@ int main(void)
 
     const char *_MODE_DEBUG = getenv("DEBUG");
     if (_MODE_DEBUG) {
-        MODE_DEBUG = TRUE;
+        mode_debug = true;
     }
 
     current_screen = SCREEN_TITLE;
     screen_table[current_screen].init();
 
 #if defined(PLATFORM_WEB)
-    emscripten_set_main_loop(iterate, 60, 1);
+    emscripten_set_main_loop_arg(iterate, &game_state, 60, 1);
 #else
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
@@ -118,8 +118,9 @@ static void update_transition(void)
     }
 }
 
-static void iterate(GameState *g)
+void iterate(void *arg)
 {
+    GameState *g = (GameState *) arg;
     const f32 dt = GetFrameTime();
     if (!on_transition) {
         screen_table[current_screen].update();
