@@ -1,5 +1,11 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 #include <raylib.h>
 #include "screens.h"
+
+#include "core/types.h"
+#include "game.h"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
@@ -37,22 +43,37 @@ ScreenInfo screen_table[] = {
     { .init = ending_init,   .update = ending_update,   .draw = ending_draw,   .unload = ending_unload,   .finish = ending_finish,   },
 };
 
-static void game_iterate(void);
+void iterate(GameState *g);
+
+b8 MODE_DEBUG = FALSE;
 
 int main(void)
 {
     InitWindow(resolution[0], resolution[1], "raylib game template");
     InitAudioDevice();
 
+    SetRandomSeed(GetTime());
+
+    GameState game_state;
+    game_init(&game_state);
+
+    const char *_MODE_DEBUG = getenv("DEBUG");
+    if (_MODE_DEBUG) {
+        MODE_DEBUG = TRUE;
+    }
+
     current_screen = SCREEN_TITLE;
     screen_table[current_screen].init();
 
 #if defined(PLATFORM_WEB)
-    emscripten_set_main_loop(game_iterate, 60, 1);
+    emscripten_set_main_loop(iterate, 60, 1);
 #else
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        game_iterate();
+        iterate(&game_state);
+        if (IsKeyPressed(KEY_R)) {
+            game_init(&game_state);
+        }
     }
 #endif
 
@@ -97,8 +118,9 @@ static void update_transition(void)
     }
 }
 
-static void game_iterate(void)
+static void iterate(GameState *g)
 {
+    const f32 dt = GetFrameTime();
     if (!on_transition) {
         screen_table[current_screen].update();
         int res = screen_table[current_screen].finish();
@@ -109,15 +131,21 @@ static void game_iterate(void)
         update_transition();
     }
 
+    game_update(g, dt);
+
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    {
+    ClearBackground(BLACK);
 
     screen_table[current_screen].draw();
+
+    game_draw(g, dt);
 
     // Draw full screen rectangle in front of everything
     if (on_transition) {
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, trans.alpha));
     }
 
+    }
     EndDrawing();
 }
