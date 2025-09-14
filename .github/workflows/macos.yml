@@ -2,12 +2,12 @@ name: macOS
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/**'
-      - '.github/workflows/macos.yml'
-  release:
-    types: [published]
+  # push:
+  #   paths:
+  #     - 'src/**'
+  #     - '.github/workflows/macos.yml'
+  # release:
+  #   types: [published]
     
 permissions:
   contents: read

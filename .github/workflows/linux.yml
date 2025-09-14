@@ -2,12 +2,12 @@ name: Linux
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/**'
-      - '.github/workflows/linux.yml'
-  release:
-    types: [published]
+  # push:
+  #   paths:
+  #     - 'src/**'
+  #     - '.github/workflows/linux.yml'
+  # release:
+  #   types: [published]
     
 permissions:
   contents: read
