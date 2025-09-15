@@ -9,7 +9,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
-static const int resolution[] = { 800, 450 };
+static const int BASE_RESOLUTION[] = { 800, 450 };
 
 static bool on_transition = false;
 GameScreen current_screen = SCREEN_TITLE;
@@ -38,7 +38,6 @@ ScreenInfo screen_table[] = {
     { .init = title_init,    .update = title_update,    .draw = title_draw,    .unload = title_unload,    .finish = title_finish,    },
     { .init = options_init,  .update = options_update,  .draw = options_draw,  .unload = options_unload,  .finish = options_finish,  },
     { .init = game_init, .update = game_update, .draw = game_draw, .unload = game_unload, .finish = game_finish, },
-    { .init = ending_init,   .update = ending_update,   .draw = ending_draw,   .unload = ending_unload,   .finish = ending_finish,   },
 };
 
 void iterate(void *arg);
@@ -47,7 +46,7 @@ bool mode_debug = false;
 
 int main(void)
 {
-    InitWindow(resolution[0], resolution[1], "raylib game template");
+    InitWindow(BASE_RESOLUTION[0], BASE_RESOLUTION[1], "raylib game template");
     InitAudioDevice();
 
     SetRandomSeed(GetTime());

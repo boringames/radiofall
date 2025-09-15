@@ -22,8 +22,6 @@ typedef struct {
 
 GameState game_state;
 
-static const int resolution[] = { 800, 450 };
-
 static void game_step(GameState *g);
 static Color grid_cell_color(u8 c);
 
@@ -48,6 +46,10 @@ void game_init() {
 }
 
 void game_draw() {
+    int resolution[] = {
+        GetRenderWidth(),
+        GetRenderHeight(),
+    };
     i32 grid_x = (resolution[0] / 2) - ((GRID_WIDTH * GRID_CELL_SIDE) / 2);
     i32 grid_y = (resolution[1]) - (GRID_HEIGHT * GRID_CELL_SIDE);
 

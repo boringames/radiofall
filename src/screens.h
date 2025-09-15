@@ -6,7 +6,6 @@ typedef enum GameScreen {
     SCREEN_TITLE,
     SCREEN_OPTIONS,
     SCREEN_GAMEPLAY,
-    SCREEN_ENDING,
     SCREEN_UNKNOWN,
 } GameScreen;
 
@@ -28,8 +27,3 @@ void game_draw();
 void game_unload();
 int game_finish();
 
-void ending_init();
-void ending_update(f32 dt);
-void ending_draw();
-void ending_unload();
-int ending_finish();
