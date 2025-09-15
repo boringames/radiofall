@@ -73,3 +73,5 @@ android.*
 
 # VSCode crap
 .vscode
+
+*.swp

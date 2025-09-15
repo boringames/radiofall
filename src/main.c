@@ -1,9 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-
 #include <raylib.h>
 #include "screens.h"
-
 #include "core/types.h"
 #include "game.h"
 
@@ -30,7 +28,7 @@ struct {
 
 typedef struct ScreenInfo {
     void (*init)();
-    void (*update)();
+    void (*update)(f32);
     void (*draw)();
     void (*unload)();
     int (*finish)();
@@ -39,7 +37,7 @@ typedef struct ScreenInfo {
 ScreenInfo screen_table[] = {
     { .init = title_init,    .update = title_update,    .draw = title_draw,    .unload = title_unload,    .finish = title_finish,    },
     { .init = options_init,  .update = options_update,  .draw = options_draw,  .unload = options_unload,  .finish = options_finish,  },
-    { .init = gameplay_init, .update = gameplay_update, .draw = gameplay_draw, .unload = gameplay_unload, .finish = gameplay_finish, },
+    { .init = game_init, .update = game_update, .draw = game_draw, .unload = game_unload, .finish = game_finish, },
     { .init = ending_init,   .update = ending_update,   .draw = ending_draw,   .unload = ending_unload,   .finish = ending_finish,   },
 };
 
@@ -54,9 +52,6 @@ int main(void)
 
     SetRandomSeed(GetTime());
 
-    GameState game_state;
-    game_init(&game_state);
-
     const char *_MODE_DEBUG = getenv("DEBUG");
     if (_MODE_DEBUG) {
         mode_debug = true;
@@ -70,10 +65,7 @@ int main(void)
 #else
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        iterate(&game_state);
-        if (IsKeyPressed(KEY_R)) {
-            game_init(&game_state);
-        }
+        iterate(NULL);
     }
 #endif
 
@@ -120,10 +112,9 @@ static void update_transition(void)
 
 void iterate(void *arg)
 {
-    GameState *g = (GameState *) arg;
     const f32 dt = GetFrameTime();
     if (!on_transition) {
-        screen_table[current_screen].update();
+        screen_table[current_screen].update(dt);
         int res = screen_table[current_screen].finish();
         if (res != SCREEN_UNKNOWN) {
             transition_to_screen(res);
@@ -132,15 +123,11 @@ void iterate(void *arg)
         update_transition();
     }
 
-    game_update(g, dt);
-
     BeginDrawing();
     {
     ClearBackground(BLACK);
 
     screen_table[current_screen].draw();
-
-    game_draw(g, dt);
 
     // Draw full screen rectangle in front of everything
     if (on_transition) {

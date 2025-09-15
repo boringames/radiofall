@@ -6,7 +6,7 @@ void options_init()
 
 }
 
-void options_update()
+void options_update(f32 dt)
 {
 
 }

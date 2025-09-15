@@ -1,6 +1,26 @@
-#include "game.h"
+#include <raylib.h>
 #include "core/types.h"
 #include "core/log.h"
+#include "screens.h"
+
+#define GRID_WIDTH 8
+#define GRID_HEIGHT 12
+#define GRID_CELL_SIDE 30
+
+enum {
+    GRID_CELL_COLOR_START,
+    GRID_CELL_BLUE,
+    GRID_CELL_RED,
+    GRID_CELL_YELLOW,
+    GRID_CELL_COLOR_COUNT,
+};
+
+typedef struct {
+    i32 grid[GRID_WIDTH][GRID_HEIGHT];
+    i32 grid_pos[2];
+} GameState;
+
+GameState game_state;
 
 static const int resolution[] = { 800, 450 };
 
@@ -9,37 +29,37 @@ static Color grid_cell_color(u8 c);
 
 #define GAME_STEP_SPAN_SECS 1.0
 
-void game_init(GameState *g) {
+void game_init() {
     for (i32 i=0; i<GRID_WIDTH; i++) {
         for (i32 j=0; j<GRID_HEIGHT; j++) {
             if (j > GRID_HEIGHT - 4) {
-                g->grid[i][j] = GetRandomValue(GRID_CELL_COLOR_START + 1, GRID_CELL_COLOR_COUNT - 1);
+                game_state.grid[i][j] = GetRandomValue(GRID_CELL_COLOR_START + 1, GRID_CELL_COLOR_COUNT - 1);
             } else if (j > GRID_HEIGHT - 6 && j <= GRID_HEIGHT - 4) {
-                g->grid[i][j] = GetRandomValue(0, GRID_CELL_COLOR_COUNT - 1);
+                game_state.grid[i][j] = GetRandomValue(0, GRID_CELL_COLOR_COUNT - 1);
             } else {
-                g->grid[i][j] = 0;
+                game_state.grid[i][j] = 0;
             }
         }
     }
 
     // rob: do a couple of steps just to clear out empty spots lol
-    game_step(g);
-    game_step(g);
+    game_step(&game_state);
+    game_step(&game_state);
 }
 
-void game_draw(GameState *g, f32 dt) {
+void game_draw() {
     i32 grid_x = (resolution[0] / 2) - ((GRID_WIDTH * GRID_CELL_SIDE) / 2);
     i32 grid_y = (resolution[1]) - (GRID_HEIGHT * GRID_CELL_SIDE);
 
     for (i32 i = 0; i < GRID_WIDTH; i++) {
         for (i32 j = 0; j < GRID_HEIGHT; j++) {
-            if (g->grid[i][j]) {
+            if (game_state.grid[i][j]) {
                 DrawRectangle(
                         GRID_CELL_SIDE * i + grid_x,
                         GRID_CELL_SIDE * j + grid_y,
                         GRID_CELL_SIDE,
                         GRID_CELL_SIDE,
-                        grid_cell_color(g->grid[i][j])
+                        grid_cell_color(game_state.grid[i][j])
                         );
             }
             DrawRectangleLines(
@@ -54,10 +74,14 @@ void game_draw(GameState *g, f32 dt) {
 }
 
 f32 elaps = 0;
-void game_update(GameState *g, f32 dt) {
+void game_update(f32 dt) {
     elaps += dt;
     if (elaps > GAME_STEP_SPAN_SECS) {
-        game_step(g); elaps = 0;
+        game_step(&game_state);
+        elaps = 0;
+    }
+    if (IsKeyPressed(KEY_R)) {
+        game_init(&game_state);
     }
 }
 
@@ -85,4 +109,13 @@ static Color grid_cell_color(u8 c) {
         GAME_LOG_ERR("no color matched, got value %d\n", c);
         return BLACK;
     }
+}
+
+void game_unload()
+{
+}
+
+int game_finish()
+{
+    return SCREEN_UNKNOWN;
 }
