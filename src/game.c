@@ -1,4 +1,5 @@
 #include <raylib.h>
+#include <math.h>
 #include "core/types.h"
 #include "core/log.h"
 #include "screens.h"
@@ -42,7 +43,6 @@ typedef struct {
     Cell cells[GRID_HEIGHT * GRID_WIDTH];
 } Pattern;
 
-f32 elaps = 0;
 i32 _dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 bool _grid_v[GRID_HEIGHT][GRID_WIDTH] = {0};
 
@@ -68,7 +68,6 @@ static Pattern grid_find_pattern(GameState *g, i32 i, i32 j, i32 color) {
 }
 
 void game_init() {
-    elaps = 0;
     for (i32 i=0; i<GRID_HEIGHT; i++) {
         for (i32 j=0; j<GRID_WIDTH; j++) {
             if (i > GRID_HEIGHT - 4) {
@@ -130,14 +129,11 @@ static void grid_sweep(GameState *g) {
     }
 }
 
-void game_update(f32 dt) {
-    elaps += dt;
-
-    if (elaps > GAME_STEP_SPAN_SECS) {
+void game_update(f32 dt, i32 frame) {
+    if (frame % 16 == 0) {
         bool settled = game_step(&game_state);
         if (settled)
             grid_sweep(&game_state);
-        elaps = 0;
     }
 
     if (IsKeyPressed(KEY_R)) {

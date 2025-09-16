@@ -12,7 +12,8 @@
 static const int BASE_RESOLUTION[] = { 800, 450 };
 
 static bool on_transition = false;
-GameScreen current_screen = SCREEN_TITLE;
+static GameScreen current_screen = SCREEN_TITLE;
+static i32 frameno = 0;
 
 struct {
     float alpha;
@@ -28,7 +29,7 @@ struct {
 
 typedef struct ScreenInfo {
     void (*init)();
-    void (*update)(f32);
+    void (*update)(f32, i32);
     void (*draw)();
     void (*unload)();
     int (*finish)();
@@ -42,19 +43,12 @@ ScreenInfo screen_table[] = {
 
 void iterate(void *arg);
 
-bool mode_debug = false;
-
 int main(void)
 {
     InitWindow(BASE_RESOLUTION[0], BASE_RESOLUTION[1], "raylib game template");
     InitAudioDevice();
 
     SetRandomSeed(GetTime());
-
-    const char *_MODE_DEBUG = getenv("DEBUG");
-    if (_MODE_DEBUG) {
-        mode_debug = true;
-    }
 
     current_screen = SCREEN_TITLE;
     screen_table[current_screen].init();
@@ -112,8 +106,9 @@ static void update_transition(void)
 void iterate(void *arg)
 {
     const f32 dt = GetFrameTime();
+    frameno++;
     if (!on_transition) {
-        screen_table[current_screen].update(dt);
+        screen_table[current_screen].update(dt, frameno);
         int res = screen_table[current_screen].finish();
         if (res != SCREEN_UNKNOWN) {
             transition_to_screen(res);

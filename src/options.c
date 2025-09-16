@@ -6,7 +6,7 @@ void options_init()
 
 }
 
-void options_update(f32 dt)
+void options_update(f32 dt, i32 frame)
 {
 
 }

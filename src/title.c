@@ -8,7 +8,7 @@ void title_init()
     start = false;
 }
 
-void title_update(f32 dt)
+void title_update(f32 dt, i32 frame)
 {
     if (IsKeyDown(KEY_ENTER)) {
         start = true;
