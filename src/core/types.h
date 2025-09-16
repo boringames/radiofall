@@ -26,3 +26,7 @@ typedef struct iVec2 {
 static inline iVec2 ivec2(i32 x, i32 y) { return (iVec2) { .x = x, .y = y }; }
 static inline Vector2 as_vec2(iVec2 v) { return (Vector2) { .x = v.x, .y = v.y }; }
 static inline iVec2 ivec2_plus(iVec2 a, iVec2 b) { return (iVec2) { .x = a.x + b.x, .y = a.y + b.y }; }
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
