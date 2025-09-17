@@ -143,26 +143,32 @@ static void grid_sweep() {
     }
 }
 
+static bool check_settled(iVec2 base_pos, Pattern *p)
+{
+    bool settled = false;
+    for (i32 i = 0; i < p->count; i++) {
+        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
+        if (grid.colors[pos.y+1][pos.x] != COLOR_EMPTY) {
+            settled = true;
+        }
+    }
+    return settled;
+}
+
 void game_update(f32 dt, i32 frame) {
     switch (cur_state) {
     case STATE_FALLING:
-        if (frame % 16 == 0) {
-            bool settled = false;
+        if (check_settled(cur_piece.pos, &cur_piece.patt)) {
+            // copy current falling piece to grid
             for (i32 i = 0; i < cur_piece.patt.count; i++) {
                 iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
-                if (grid.colors[pos.y+1][pos.x] != COLOR_EMPTY) {
-                    settled = true;
-                }
+                grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
             }
-            if (settled) {
-                for (i32 i = 0; i < cur_piece.patt.count; i++) {
-                    iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
-                    grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
-                }
-                cur_state = STATE_SETTLING;
-            } else {
-                cur_piece.pos.y += 1;
-            }
+            cur_state = STATE_SETTLING;
+        } else {
+            i32 xdir = (IsKeyPressed(KEY_LEFT) ? -1 : 0) + (IsKeyPressed(KEY_RIGHT) ? 1 : 0);
+            i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 16 == 0 ? 1 : 0;
+            cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
         }
         break;
     case STATE_SETTLING:
