@@ -74,8 +74,14 @@ void game_init() {
     }
 
     pattbuf_init(&pattern_buffer);
-    cur_piece.patt.count = 0;
-    cur_state = STATE_SETTLING;
+    cur_piece.patt.count = 3;
+    cur_piece.patt.coords[0] = IVEC2(0, 0);
+    cur_piece.patt.coords[1] = IVEC2(1, 0);
+    cur_piece.patt.coords[2] = IVEC2(2, 0);
+    cur_piece.patt.color[0] = COLOR_BLUE;
+    cur_piece.patt.color[1] = COLOR_RED;
+    cur_piece.patt.color[2] = COLOR_GREEN;
+    cur_piece.pos = IVEC2(3, 0);
 }
 
 static Color grid_cell_color(u8 c) {
@@ -143,55 +149,52 @@ static void grid_sweep() {
     }
 }
 
-static bool check_settled(iVec2 base_pos, Pattern *p)
+static void enter_settling_state()
 {
-    bool settled = false;
-    for (i32 i = 0; i < p->count; i++) {
-        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
-        if (grid.colors[pos.y+1][pos.x] != COLOR_EMPTY) {
-            settled = true;
+    // copy current falling piece to grid
+    for (i32 i = 0; i < cur_piece.patt.count; i++) {
+        iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
+        grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
+    }
+    grid_sweep();
+    if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
+        cur_piece.pos = IVEC2(3, 0);
+        for (i32 i = 0; i < cur_piece.patt.count; i++) {
+            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE,  COLOR_COUNT - 1);
         }
     }
-    return settled;
+    cur_state = STATE_SETTLING;
+}
+
+static bool is_valid_pos(iVec2 base_pos, Pattern *p)
+{
+    for (i32 i = 0; i < p->count; i++) {
+        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
+        if (!IN_GRID(pos) || grid.colors[pos.y][pos.x] != COLOR_EMPTY) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void game_update(f32 dt, i32 frame) {
     switch (cur_state) {
     case STATE_FALLING:
-        if (check_settled(cur_piece.pos, &cur_piece.patt)) {
-            // copy current falling piece to grid
-            for (i32 i = 0; i < cur_piece.patt.count; i++) {
-                iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
-                grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
-            }
-            cur_state = STATE_SETTLING;
+        i32 xdir = -IsKeyPressed(KEY_LEFT) + IsKeyPressed(KEY_RIGHT);
+        if (!is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
+            xdir = 0;
+        }
+        i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 64 == 0;
+        if (!is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
+            cur_piece.pos.x += xdir;
+            enter_settling_state();
         } else {
-            i32 xdir = (IsKeyPressed(KEY_LEFT) ? -1 : 0) + (IsKeyPressed(KEY_RIGHT) ? 1 : 0);
-            i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 16 == 0 ? 1 : 0;
             cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
         }
         break;
     case STATE_SETTLING:
-        grid_sweep();
-        // bool settled = true;
-        // for (i32 i=GRID_HEIGHT-2; i>0; i--) {
-        //     for (i32 j=0; j<GRID_WIDTH; j++) {
-        //         if (grid.colors[i+1][j] == 0 && grid.colors[i][j] != 0) {
-        //             // grid.colors[i+1][j] = grid.colors[i][j];
-        //             // grid.colors[i][j] = 0;
-        //             settled = false;
-        //         }
-        //     }
-        // }
-        // if (settled) {
-            if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
-                cur_piece.pos = IVEC2(3, 0);
-                for (i32 i = 0; i < cur_piece.patt.count; i++) {
-                    cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE,  COLOR_COUNT - 1);
-                }
-            }
-            cur_state = STATE_FALLING;
-        // }
+        // do some animations
+        cur_state = STATE_FALLING;
         break;
     }
 
