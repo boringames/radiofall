@@ -48,7 +48,6 @@ enum {
     STATE_SETTLING,
 } cur_state;
 
-
 static const iVec2 dirs[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };
 
 static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
@@ -138,7 +137,7 @@ static void grid_sweep() {
             p->count = 0;
             find_pattern(IVEC2(j, i), grid.colors[i][j], p);
             if (p->count < 4) {
-                pattbuf_remove_tail(&pattern_buffer, NULL);
+                pattbuf_dequeue_tail(&pattern_buffer, NULL);
             } else {
                 for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
