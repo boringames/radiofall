@@ -8,7 +8,7 @@
 #include "const.h"
 
 #define GRID_WIDTH 8
-#define GRID_HEIGHT 12
+#define GRID_HEIGHT 13
 #define GRID_CELL_SIDE 16
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
@@ -50,6 +50,8 @@ enum {
 
 static const iVec2 dirs[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };
 
+Texture2D field_ui;
+
 static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
     grid.visited[pos.y][pos.x] = true;
     pattern->coords[pattern->count] = pos;
@@ -63,6 +65,8 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
 }
 
 void game_init() {
+    field_ui = LoadTexture("resources/ui.png");
+
     for (i32 y = GRID_HEIGHT-1; y > 0; y--) {
         for (i32 x = 0; x < GRID_WIDTH; x++) {
             grid.colors[y][x] =
@@ -203,8 +207,8 @@ void game_update(f32 dt, i32 frame) {
 }
 
 void game_draw() {
-    i32 grid_x = (RESOLUTION[0] / 2) - ((GRID_WIDTH * GRID_CELL_SIDE) / 2);
-    i32 grid_y = (RESOLUTION[1]) - (GRID_HEIGHT * GRID_CELL_SIDE);
+    i32 grid_x = 96;
+    i32 grid_y = 16;
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
@@ -236,6 +240,8 @@ void game_draw() {
                     );
         }
     }
+
+    DrawTexture(field_ui, 0, 0, WHITE);
 }
 
 void game_unload()
