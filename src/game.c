@@ -33,8 +33,8 @@ typedef struct {
     i32 color[GRID_HEIGHT * GRID_WIDTH];
 } Pattern;
 
-QUEUE_DECLARE(Pattern, PatternBuffer, pattbuf)
-QUEUE_DEFINE(Pattern, PatternBuffer, pattbuf)
+QUEUE_DECLARE(Pattern, PatternBuffer, pattbuf, 32)
+QUEUE_DEFINE(Pattern, PatternBuffer, pattbuf, 32)
 
 PatternBuffer pattern_buffer;
 
@@ -132,7 +132,7 @@ static void grid_sweep() {
             p->count = 0;
             find_pattern(IVEC2(j, i), grid.colors[i][j], p);
             if (p->count < 4) {
-                pattern_buffer.t = (pattern_buffer.t - 1) % 8;
+                pattbuf_remove_tail(&pattern_buffer, NULL);
             } else {
                 for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
