@@ -5,11 +5,8 @@
 #include "core/log.h"
 #include "screens.h"
 #include "queue.h"
+#include "loader.h"
 #include "const.h"
-
-#define GRID_WIDTH 8
-#define GRID_HEIGHT 13
-#define GRID_CELL_SIDE 16
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
 
@@ -67,14 +64,12 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
 void game_init() {
     field_ui = LoadTexture("resources/ui.png");
 
-    for (i32 y = GRID_HEIGHT-1; y > 0; y--) {
-        for (i32 x = 0; x < GRID_WIDTH; x++) {
-            grid.colors[y][x] =
-                y > 8                                       ? GetRandomValue(COLOR_BLUE,  COLOR_COUNT - 1)
-              : y > 6 && grid.colors[y+1][x] != COLOR_EMPTY ? GetRandomValue(COLOR_EMPTY, COLOR_COUNT - 1)
-              :                                               COLOR_EMPTY;
-        }
-    }
+    i32 nmaps = 0;
+    i32 (*maps)[GRID_HEIGHT][GRID_WIDTH] = loader_load_maps("resources/maps.txt", &nmaps);
+    i32 map_id = GetRandomValue(0, nmaps);
+    for (i32 y = 0; y < GRID_HEIGHT; y++)
+        for (i32 x = 0; x < GRID_WIDTH; x++)
+            grid.colors[y][x] = maps[map_id][y][x];
 
     pattbuf_init(&pattern_buffer);
     cur_piece.patt.count = 3;

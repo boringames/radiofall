@@ -3,8 +3,6 @@
 
 #include "core/types.h"
 
-#define MAPS_FILEPATH "assets/maps.txt"
-
 #define GRID_WIDTH 8
 #define GRID_HEIGHT 12
 #define GRID_CELL_SIDE 16
