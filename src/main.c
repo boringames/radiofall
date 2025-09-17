@@ -1,15 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <raylib.h>
+#include <raymath.h>
 #include "screens.h"
 #include "core/types.h"
 #include "game.h"
+#include "const.h"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
-
-static const int BASE_RESOLUTION[] = { 800, 450 };
 
 static bool on_transition = false;
 static GameScreen current_screen = SCREEN_TITLE;
@@ -41,14 +41,16 @@ ScreenInfo screen_table[] = {
     { .init = game_init, .update = game_update, .draw = game_draw, .unload = game_unload, .finish = game_finish, },
 };
 
+RenderTexture2D render_texture;
+
 void iterate(void *arg);
 
 int main(void)
 {
-    InitWindow(BASE_RESOLUTION[0], BASE_RESOLUTION[1], "raylib game template");
+    InitWindow(RESOLUTION[0] * SCALE, RESOLUTION[1] * SCALE, "raylib game template");
     InitAudioDevice();
-
     SetRandomSeed(GetTime());
+    render_texture = LoadRenderTexture(RESOLUTION[0], RESOLUTION[1]);
 
     current_screen = SCREEN_TITLE;
     screen_table[current_screen].init();
@@ -118,7 +120,7 @@ void iterate(void *arg)
     }
 
     BeginDrawing();
-    {
+    BeginTextureMode(render_texture);
     ClearBackground(BLACK);
 
     screen_table[current_screen].draw();
@@ -128,6 +130,14 @@ void iterate(void *arg)
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, trans.alpha));
     }
 
-    }
+    EndTextureMode();
+
+    DrawTexturePro(
+        render_texture.texture,
+        rec(vec2(0, 0), vec2(RESOLUTION[0], -RESOLUTION[1])),
+        rec(vec2(0, 0), Vector2Scale(vec2(RESOLUTION[0], RESOLUTION[1]), SCALE)),
+        vec2(0, 0), 0, WHITE
+    );
+
     EndDrawing();
 }

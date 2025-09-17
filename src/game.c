@@ -5,10 +5,11 @@
 #include "core/log.h"
 #include "screens.h"
 #include "queue.h"
+#include "const.h"
 
 #define GRID_WIDTH 8
 #define GRID_HEIGHT 12
-#define GRID_CELL_SIDE 32
+#define GRID_CELL_SIDE 16
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
 
@@ -194,12 +195,8 @@ void game_update(f32 dt, i32 frame) {
 }
 
 void game_draw() {
-    int resolution[] = {
-        GetRenderWidth(),
-        GetRenderHeight(),
-    };
-    i32 grid_x = (resolution[0] / 2) - ((GRID_WIDTH * GRID_CELL_SIDE) / 2);
-    i32 grid_y = (resolution[1]) - (GRID_HEIGHT * GRID_CELL_SIDE);
+    i32 grid_x = (RESOLUTION[0] / 2) - ((GRID_WIDTH * GRID_CELL_SIDE) / 2);
+    i32 grid_y = (RESOLUTION[1]) - (GRID_HEIGHT * GRID_CELL_SIDE);
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);

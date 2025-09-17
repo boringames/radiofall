@@ -30,3 +30,9 @@ static inline iVec2 ivec2_plus(iVec2 a, iVec2 b) { return (iVec2) { .x = a.x + b
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+static inline Rectangle rec(Vector2 pos, Vector2 size) {
+    return (Rectangle) {
+        .x = pos.x, .y = pos.y,
+        .width = size.x, .height = size.y
+    };
+}
