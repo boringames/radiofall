@@ -65,7 +65,7 @@ void game_init() {
     field_ui = LoadTexture("resources/ui.png");
 
     i32 nmaps = 0;
-    i32 (*maps)[GRID_HEIGHT][GRID_WIDTH] = loader_load_maps("resources/maps.txt", &nmaps);
+    LoaderMap *maps = loader_load_maps("resources/maps.txt", &nmaps);
     i32 map_id = GetRandomValue(0, nmaps);
     for (i32 y = 0; y < GRID_HEIGHT; y++)
         for (i32 x = 0; x < GRID_WIDTH; x++)

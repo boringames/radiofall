@@ -6,9 +6,9 @@
 
 #define LOADER_MAX_MAPS 20
 
-i32 _maps[LOADER_MAX_MAPS][GRID_HEIGHT][GRID_WIDTH];
+LoaderMap _maps[LOADER_MAX_MAPS];
 
-i32 (*loader_load_maps(const char *filepath, i32 *n_maps))[GRID_HEIGHT][GRID_WIDTH] {
+LoaderMap *loader_load_maps(const char *filepath, i32 *n_maps) {
     i32 size = 0; *n_maps = 0;
     const char *buf = (const char *)LoadFileData(filepath, &size);
     {

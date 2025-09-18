@@ -4,6 +4,8 @@
 #include "const.h"
 #include "core/types.h"
 
-i32 (*loader_load_maps(const char *filepath, i32 *n_maps))[GRID_HEIGHT][GRID_WIDTH];
+typedef i32 LoaderMap[GRID_HEIGHT][GRID_WIDTH];
+
+LoaderMap *loader_load_maps(const char *filepath, i32 *n_maps);
 
 #endif // LOADER_H
