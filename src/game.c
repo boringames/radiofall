@@ -179,20 +179,10 @@ static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
 
 static void pattern_rotate(iVec2 base_pos, Pattern *p)
 {
-    printf("before: ");
-    for (i32 i = 0; i < p->count; i++) {
-        printf("(%d %d) ", p->coords[i].x, p->coords[i].y);
-    }
-    printf("\n");
     for (i32 i = 0; i < p->count; i++) {
         Vector2 v = Vector2Rotate(as_vec2(p->coords[i]), M_PI/2);
         p->coords[i] = IVEC2(round(v.x), round(v.y));
     }
-    printf("after: ");
-    for (i32 i = 0; i < p->count; i++) {
-        printf("(%d %d) ", p->coords[i].x, p->coords[i].y);
-    }
-    printf("\n");
 }
 
 static void grid_sweep() {
