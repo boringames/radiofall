@@ -29,6 +29,7 @@ struct {
 enum {
     STATE_FALLING,
     STATE_SETTLING,
+    STATE_END,
 } cur_state;
 
 Texture2D field_ui;
@@ -75,6 +76,8 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
 }
 
 void game_init() {
+    cur_state = STATE_FALLING;
+
     field_ui = LoadTexture("resources/ui.png");
 
     i32 nmaps = 0;
@@ -126,7 +129,9 @@ static void enter_settling_state()
         iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
         grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
     }
+
     grid_sweep();
+
     if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         cur_piece.pos = IVEC2(3, 0);
         for (i32 i = 0; i < cur_piece.patt.count; i++) {
@@ -136,7 +141,12 @@ static void enter_settling_state()
         cur_piece.pos = IVEC2(3, 0);
         pattern_generate(&cur_piece.patt);
     }
-    cur_state = STATE_SETTLING;
+
+    if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
+        cur_state = STATE_END;
+    } else {
+        cur_state = STATE_SETTLING;
+    }
 }
 
 void game_update(f32 dt, i32 frame) {
@@ -165,6 +175,8 @@ void game_update(f32 dt, i32 frame) {
     case STATE_SETTLING:
         // do some animations
         cur_state = STATE_FALLING;
+        break;
+    default:
         break;
     }
 
@@ -217,5 +229,8 @@ void game_unload()
 
 int game_finish()
 {
+    if (cur_state == STATE_END) {
+        return SCREEN_TITLE;
+    }
     return SCREEN_UNKNOWN;
 }
