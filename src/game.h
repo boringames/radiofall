@@ -4,7 +4,7 @@
 #include "core/types.h"
 
 #define GRID_WIDTH 8
-#define GRID_HEIGHT 12
+#define GRID_HEIGHT 13
 #define GRID_CELL_SIDE 16
 
 typedef enum GridColor {
