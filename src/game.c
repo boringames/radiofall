@@ -1,6 +1,8 @@
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 #include <raylib.h>
+#include <raymath.h>
 #include "core/types.h"
 #include "core/log.h"
 #include "screens.h"
@@ -72,13 +74,15 @@ void game_init() {
             grid.colors[y][x] = maps[map_id][y][x];
 
     pattbuf_init(&pattern_buffer);
-    cur_piece.patt.count = 3;
+    cur_piece.patt.count = 4;
     cur_piece.patt.coords[0] = IVEC2(0, 0);
     cur_piece.patt.coords[1] = IVEC2(1, 0);
-    cur_piece.patt.coords[2] = IVEC2(2, 0);
+    cur_piece.patt.coords[2] = IVEC2(1, 1);
+    cur_piece.patt.coords[3] = IVEC2(2, 1);
     cur_piece.patt.color[0] = COLOR_BLUE;
     cur_piece.patt.color[1] = COLOR_RED;
     cur_piece.patt.color[2] = COLOR_GREEN;
+    cur_piece.patt.color[3] = COLOR_YELLOW;
     cur_piece.pos = IVEC2(3, 0);
 }
 
@@ -99,21 +103,39 @@ static Color grid_cell_color(u8 c) {
     }
 }
 
-static void pattern_reset(Pattern *p)
+static void pattern_normalize(Pattern *p)
 {
-    // find minimum y of coordinates into pattern
+    // find minimum x,y of coordinates into pattern
+    // then subtract those to each coords
     i32 miny = INT_MAX;
     i32 minx = INT_MAX;
-    // i32 maxx = INT_MIN;
     for (i32 i = 0; i < p->count; i++) {
         miny = MIN(p->coords[i].y, miny);
         minx = MIN(p->coords[i].x, minx);
-        // maxx = MAX(p->coords[i].x, maxx);
     }
-    // i32 base_x = (8 - (maxx - minx)) / 2;
     for (i32 i = 0; i < p->count; i++) {
         p->coords[i].y -= miny;
         p->coords[i].x -= minx;
+    }
+}
+
+// check if (base_pos, pattern) is valid inside the grid
+static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
+{
+    for (i32 i = 0; i < p->count; i++) {
+        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
+        if (!IN_GRID(pos) || grid.colors[pos.y][pos.x] != COLOR_EMPTY) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void pattern_rotate(iVec2 base_pos, Pattern *p)
+{
+    for (i32 i = 0; i < p->count; i++) {
+        Vector2 v = Vector2Rotate(as_vec2(p->coords[i]), M_PI/2);
+        p->coords[i] = IVEC2(round(v.x), round(v.y));
     }
 }
 
@@ -141,7 +163,7 @@ static void grid_sweep() {
                 for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
                 }
-                pattern_reset(p);
+                pattern_normalize(p);
             }
         }
     }
@@ -164,26 +186,23 @@ static void enter_settling_state()
     cur_state = STATE_SETTLING;
 }
 
-static bool is_valid_pos(iVec2 base_pos, Pattern *p)
-{
-    for (i32 i = 0; i < p->count; i++) {
-        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
-        if (!IN_GRID(pos) || grid.colors[pos.y][pos.x] != COLOR_EMPTY) {
-            return false;
-        }
-    }
-    return true;
-}
-
 void game_update(f32 dt, i32 frame) {
     switch (cur_state) {
     case STATE_FALLING:
+        if (IsKeyPressed(KEY_Z)) {
+            Pattern p = { .count = cur_piece.patt.count };
+            memcpy(p.coords, cur_piece.patt.coords, sizeof(iVec2) * p.count);
+            pattern_rotate(cur_piece.pos, &p);
+            if (pattern_is_valid_pos(cur_piece.pos, &p)) {
+                memcpy(cur_piece.patt.coords, p.coords, sizeof(iVec2) * p.count);
+            }
+        }
         i32 xdir = -IsKeyPressed(KEY_LEFT) + IsKeyPressed(KEY_RIGHT);
-        if (!is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
+        if (!pattern_is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
             xdir = 0;
         }
         i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 64 == 0;
-        if (!is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
+        if (!pattern_is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
             cur_piece.pos.x += xdir;
             enter_settling_state();
         } else {
