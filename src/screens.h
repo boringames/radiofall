@@ -26,4 +26,3 @@ void game_update(f32 dt, i32 frame);
 void game_draw();
 void game_unload();
 int game_finish();
-

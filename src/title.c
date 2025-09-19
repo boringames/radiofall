@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include "screens.h"
-#include "const.h"
+
+static const i32 RESOLUTION[] = { 320, 240 };
 
 bool start = false;
 

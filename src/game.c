@@ -1,40 +1,23 @@
+#include "game.h"
+
 #include <math.h>
 #include <limits.h>
 #include <string.h>
 #include <raylib.h>
 #include <raymath.h>
 #include "core/types.h"
-#include "core/log.h"
 #include "screens.h"
 #include "queue.h"
 #include "loader.h"
-#include "const.h"
 #include "util.h"
+#include "pattern.h"
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
-
-typedef enum GridColor {
-    COLOR_EMPTY,
-    COLOR_BLUE,
-    COLOR_RED,
-    COLOR_GREEN,
-    COLOR_YELLOW,
-    COLOR_COUNT,
-} GridColor;
 
 struct {
     GridColor colors[GRID_HEIGHT][GRID_WIDTH];
     bool visited[GRID_HEIGHT][GRID_WIDTH];
 } grid;
-
-typedef struct {
-    i32 count;
-    iVec2 coords[GRID_HEIGHT * GRID_WIDTH];
-    i32 color[GRID_HEIGHT * GRID_WIDTH];
-} Pattern;
-
-QUEUE_DECLARE(Pattern, PatternBuffer, pattbuf, 32)
-QUEUE_DEFINE(Pattern, PatternBuffer, pattbuf, 32)
 
 PatternBuffer pattern_buffer;
 
@@ -48,105 +31,7 @@ enum {
     STATE_SETTLING,
 } cur_state;
 
-static const iVec2 DIRS[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };
-
 Texture2D field_ui;
-
-static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
-    grid.visited[pos.y][pos.x] = true;
-    pattern->coords[pattern->count] = pos;
-    pattern->count++;
-    for (i32 i = 0; i < 4; i++) {
-        iVec2 neighbor = ivec2_plus(pos, DIRS[i]);
-        if (!grid.visited[neighbor.y][neighbor.x] && IN_GRID(neighbor) && grid.colors[neighbor.y][neighbor.x] == color) {
-            find_pattern(neighbor, color, pattern);
-        }
-    }
-}
-
-static bool pattern_has_coord(Pattern *p, iVec2 v)
-{
-    for (i32 i = 0; i < p->count; i++) {
-        if (ivec2_eq(v, p->coords[i])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static void pattern_normalize(Pattern *p)
-{
-    // find minimum x,y of coordinates into pattern
-    // then subtract those to each coords
-    i32 miny = INT_MAX;
-    i32 minx = INT_MAX;
-    for (i32 i = 0; i < p->count; i++) {
-        miny = MIN(p->coords[i].y, miny);
-        minx = MIN(p->coords[i].x, minx);
-    }
-    for (i32 i = 0; i < p->count; i++) {
-        p->coords[i].y -= miny;
-        p->coords[i].x -= minx;
-    }
-}
-
-static void pattern_generate(Pattern *p)
-{
-    i32 count = GetRandomValue(3, 5);
-    p->coords[0] = IVEC2(GetRandomValue(0, count-1), GetRandomValue(0, count-1));;
-    p->color[0] = GetRandomValue(COLOR_BLUE, COLOR_COUNT-1);
-    p->count = 1;
-    for (i32 i = 1; i < count; i++) {
-        iVec2 prev = p->coords[i-1];
-        // find out the possible directions for this piece
-        // by checking every direction against coords already in the pattern
-        iVec2 possible_dirs[4];
-        i32 num_dirs = 0;
-        for (i32 j = 0; j < 4; j++) {
-            if (!pattern_has_coord(p, ivec2_plus(DIRS[j], prev))) {
-                possible_dirs[num_dirs++] = DIRS[j];
-            }
-        }
-        if (num_dirs > 0) {
-            p->coords[i] = ivec2_plus(prev, possible_dirs[GetRandomValue(0, num_dirs-1)]);
-            p->color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT-1);
-            p->count++;
-        } else {
-            break;
-        }
-    }
-    pattern_normalize(p);
-}
-
-void game_init() {
-    field_ui = LoadTexture("resources/ui.png");
-
-    i32 nmaps = 0;
-    LoaderMap *maps = loader_load_maps("resources/maps.txt", &nmaps);
-    i32 map_id = GetRandomValue(0, nmaps);
-    for (i32 y = 0; y < GRID_HEIGHT; y++)
-        for (i32 x = 0; x < GRID_WIDTH; x++)
-            grid.colors[y][x] = maps[map_id][y][x];
-
-    pattbuf_init(&pattern_buffer);
-    pattern_generate(&cur_piece.patt);
-    cur_piece.pos = IVEC2(3, 0);
-    /*
-    // (0 3) (1 3) (2 3) (2 4) (2 5)
-    cur_piece.patt.count = 5;
-    cur_piece.patt.coords[0] = IVEC2(0, 3);
-    cur_piece.patt.coords[1] = IVEC2(1, 3);
-    cur_piece.patt.coords[2] = IVEC2(2, 3);
-    cur_piece.patt.coords[3] = IVEC2(2, 4);
-    cur_piece.patt.coords[4] = IVEC2(2, 5);
-    cur_piece.patt.color[0] = COLOR_BLUE;
-    cur_piece.patt.color[1] = COLOR_RED;
-    cur_piece.patt.color[2] = COLOR_GREEN;
-    cur_piece.patt.color[3] = COLOR_YELLOW;
-    cur_piece.patt.color[4] = COLOR_YELLOW;
-    cur_piece.pos = IVEC2(3, 0);
-    */
-}
 
 static Color grid_cell_color(u8 c) {
     switch (c)
@@ -166,7 +51,7 @@ static Color grid_cell_color(u8 c) {
 }
 
 // check if (base_pos, pattern) is valid inside the grid
-static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
+bool is_valid_pattern_pos(iVec2 base_pos, Pattern *p)
 {
     for (i32 i = 0; i < p->count; i++) {
         iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
@@ -177,12 +62,31 @@ static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
     return true;
 }
 
-static void pattern_rotate(iVec2 base_pos, Pattern *p)
-{
-    for (i32 i = 0; i < p->count; i++) {
-        Vector2 v = Vector2Rotate(as_vec2(p->coords[i]), M_PI/2);
-        p->coords[i] = IVEC2(round(v.x), round(v.y));
+static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
+    grid.visited[pos.y][pos.x] = true;
+    pattern->coords[pattern->count] = pos;
+    pattern->count++;
+    for (i32 i = 0; i < 4; i++) {
+        iVec2 neighbor = ivec2_plus(pos, DIRS[i]);
+        if (!grid.visited[neighbor.y][neighbor.x] && IN_GRID(neighbor) && grid.colors[neighbor.y][neighbor.x] == color) {
+            find_pattern(neighbor, color, pattern);
+        }
     }
+}
+
+void game_init() {
+    field_ui = LoadTexture("resources/ui.png");
+
+    i32 nmaps = 0;
+    LoaderMap *maps = loader_load_maps("resources/maps.txt", &nmaps);
+    i32 map_id = GetRandomValue(0, nmaps);
+    for (i32 y = 0; y < GRID_HEIGHT; y++)
+        for (i32 x = 0; x < GRID_WIDTH; x++)
+            grid.colors[y][x] = maps[map_id][y][x];
+
+    pattbuf_init(&pattern_buffer);
+    pattern_generate(&cur_piece.patt);
+    cur_piece.pos = IVEC2(3, 0);
 }
 
 static void grid_sweep() {
@@ -242,16 +146,16 @@ void game_update(f32 dt, i32 frame) {
             Pattern p = { .count = cur_piece.patt.count };
             memcpy(p.coords, cur_piece.patt.coords, sizeof(iVec2) * p.count);
             pattern_rotate(cur_piece.pos, &p);
-            if (pattern_is_valid_pos(cur_piece.pos, &p)) {
+            if (is_valid_pattern_pos(cur_piece.pos, &p)) {
                 memcpy(cur_piece.patt.coords, p.coords, sizeof(iVec2) * p.count);
             }
         }
         i32 xdir = -IsKeyPressed(KEY_LEFT) + IsKeyPressed(KEY_RIGHT);
-        if (!pattern_is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
+        if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
             xdir = 0;
         }
         i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 64 == 0;
-        if (!pattern_is_valid_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
+        if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
             cur_piece.pos.x += xdir;
             enter_settling_state();
         } else {

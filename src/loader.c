@@ -1,5 +1,5 @@
+#include "game.h"
 #include "loader.h"
-#include "const.h"
 #include "core/log.h"
 
 #include <raylib.h>

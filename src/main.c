@@ -5,11 +5,13 @@
 #include "screens.h"
 #include "core/types.h"
 #include "game.h"
-#include "const.h"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
+
+static const i32 RESOLUTION[] = { 320, 240 };
+static const i32 SCALE = 2;
 
 static bool on_transition = false;
 static GameScreen current_screen = SCREEN_TITLE;

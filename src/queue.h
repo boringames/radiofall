@@ -2,8 +2,6 @@
 
 #include <stddef.h>
 
-#define QUEUE_NEXT(i) ((i + 1) % 8)
-
 #define QUEUE_DECLARE(T, TName, name, size)         \
 typedef struct TName {                              \
     size_t h, t;                                    \
@@ -11,7 +9,10 @@ typedef struct TName {                              \
 } TName;                                            \
 void name##_init(TName *q);                         \
 bool name##_enqueue(TName *q, T x);                 \
+T *name##_enqueue_ptr(TName *q);                    \
 bool name##_dequeue(TName *q, T *out);              \
+bool name##_dequeue_tail(TName *q, T *out);         \
+size_t name##_size(TName *q);                       \
 
 #define QUEUE_DEFINE(T, TName, name, size)             \
 /* initialize a queue. data is not initialized */      \
