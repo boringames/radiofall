@@ -23,29 +23,27 @@ add_executable(${PROJECT_NAME})
 
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS src/*.c)
 file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS src/*.h)
+file(GLOB_RECURSE IMAGES CONFIGURE_DEPENDS src/resources/*.ase)
 
-target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
+target_sources(${PROJECT_NAME} PRIVATE
+    ${SOURCE_FILES} ${HEADER_FILES} ${IMAGES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
-
-# set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
 if ("${PLATFORM}" STREQUAL "Web")
     add_custom_command(
         TARGET ${PROJECT_NAME} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/../resources
     )
-    #DEPENDS ${PROJECT_NAME}
 else()
     add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+        COMMAND bash ${CMAKE_SOURCE_DIR}/src/tools/setup-resources.sh ${CMAKE_SOURCE_DIR} $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
-    #DEPENDS ${PROJECT_NAME}
 endif()
 
-#set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
