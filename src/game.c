@@ -9,6 +9,7 @@
 #include "queue.h"
 #include "loader.h"
 #include "const.h"
+#include "util.h"
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
 
@@ -47,7 +48,7 @@ enum {
     STATE_SETTLING,
 } cur_state;
 
-static const iVec2 dirs[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };
+static const iVec2 DIRS[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };
 
 Texture2D field_ui;
 
@@ -56,11 +57,65 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
     pattern->coords[pattern->count] = pos;
     pattern->count++;
     for (i32 i = 0; i < 4; i++) {
-        iVec2 neighbor = ivec2_plus(pos, dirs[i]);
+        iVec2 neighbor = ivec2_plus(pos, DIRS[i]);
         if (!grid.visited[neighbor.y][neighbor.x] && IN_GRID(neighbor) && grid.colors[neighbor.y][neighbor.x] == color) {
             find_pattern(neighbor, color, pattern);
         }
     }
+}
+
+static bool pattern_has_coord(Pattern *p, iVec2 v)
+{
+    for (i32 i = 0; i < p->count; i++) {
+        if (ivec2_eq(v, p->coords[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void pattern_normalize(Pattern *p)
+{
+    // find minimum x,y of coordinates into pattern
+    // then subtract those to each coords
+    i32 miny = INT_MAX;
+    i32 minx = INT_MAX;
+    for (i32 i = 0; i < p->count; i++) {
+        miny = MIN(p->coords[i].y, miny);
+        minx = MIN(p->coords[i].x, minx);
+    }
+    for (i32 i = 0; i < p->count; i++) {
+        p->coords[i].y -= miny;
+        p->coords[i].x -= minx;
+    }
+}
+
+static void pattern_generate(Pattern *p)
+{
+    i32 count = GetRandomValue(3, 5);
+    p->coords[0] = IVEC2(GetRandomValue(0, count-1), GetRandomValue(0, count-1));;
+    p->color[0] = GetRandomValue(COLOR_BLUE, COLOR_COUNT-1);
+    p->count = 1;
+    for (i32 i = 1; i < count; i++) {
+        iVec2 prev = p->coords[i-1];
+        // find out the possible directions for this piece
+        // by checking every direction against coords already in the pattern
+        iVec2 possible_dirs[4];
+        i32 num_dirs = 0;
+        for (i32 j = 0; j < 4; j++) {
+            if (!pattern_has_coord(p, ivec2_plus(DIRS[j], prev))) {
+                possible_dirs[num_dirs++] = DIRS[j];
+            }
+        }
+        if (num_dirs > 0) {
+            p->coords[i] = ivec2_plus(prev, possible_dirs[GetRandomValue(0, num_dirs-1)]);
+            p->color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT-1);
+            p->count++;
+        } else {
+            break;
+        }
+    }
+    pattern_normalize(p);
 }
 
 void game_init() {
@@ -74,16 +129,23 @@ void game_init() {
             grid.colors[y][x] = maps[map_id][y][x];
 
     pattbuf_init(&pattern_buffer);
-    cur_piece.patt.count = 4;
-    cur_piece.patt.coords[0] = IVEC2(0, 0);
-    cur_piece.patt.coords[1] = IVEC2(1, 0);
-    cur_piece.patt.coords[2] = IVEC2(1, 1);
-    cur_piece.patt.coords[3] = IVEC2(2, 1);
+    pattern_generate(&cur_piece.patt);
+    cur_piece.pos = IVEC2(3, 0);
+    /*
+    // (0 3) (1 3) (2 3) (2 4) (2 5)
+    cur_piece.patt.count = 5;
+    cur_piece.patt.coords[0] = IVEC2(0, 3);
+    cur_piece.patt.coords[1] = IVEC2(1, 3);
+    cur_piece.patt.coords[2] = IVEC2(2, 3);
+    cur_piece.patt.coords[3] = IVEC2(2, 4);
+    cur_piece.patt.coords[4] = IVEC2(2, 5);
     cur_piece.patt.color[0] = COLOR_BLUE;
     cur_piece.patt.color[1] = COLOR_RED;
     cur_piece.patt.color[2] = COLOR_GREEN;
     cur_piece.patt.color[3] = COLOR_YELLOW;
+    cur_piece.patt.color[4] = COLOR_YELLOW;
     cur_piece.pos = IVEC2(3, 0);
+    */
 }
 
 static Color grid_cell_color(u8 c) {
@@ -103,22 +165,6 @@ static Color grid_cell_color(u8 c) {
     }
 }
 
-static void pattern_normalize(Pattern *p)
-{
-    // find minimum x,y of coordinates into pattern
-    // then subtract those to each coords
-    i32 miny = INT_MAX;
-    i32 minx = INT_MAX;
-    for (i32 i = 0; i < p->count; i++) {
-        miny = MIN(p->coords[i].y, miny);
-        minx = MIN(p->coords[i].x, minx);
-    }
-    for (i32 i = 0; i < p->count; i++) {
-        p->coords[i].y -= miny;
-        p->coords[i].x -= minx;
-    }
-}
-
 // check if (base_pos, pattern) is valid inside the grid
 static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
 {
@@ -133,10 +179,20 @@ static bool pattern_is_valid_pos(iVec2 base_pos, Pattern *p)
 
 static void pattern_rotate(iVec2 base_pos, Pattern *p)
 {
+    printf("before: ");
+    for (i32 i = 0; i < p->count; i++) {
+        printf("(%d %d) ", p->coords[i].x, p->coords[i].y);
+    }
+    printf("\n");
     for (i32 i = 0; i < p->count; i++) {
         Vector2 v = Vector2Rotate(as_vec2(p->coords[i]), M_PI/2);
         p->coords[i] = IVEC2(round(v.x), round(v.y));
     }
+    printf("after: ");
+    for (i32 i = 0; i < p->count; i++) {
+        printf("(%d %d) ", p->coords[i].x, p->coords[i].y);
+    }
+    printf("\n");
 }
 
 static void grid_sweep() {
@@ -182,6 +238,9 @@ static void enter_settling_state()
         for (i32 i = 0; i < cur_piece.patt.count; i++) {
             cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE,  COLOR_COUNT - 1);
         }
+    } else {
+        cur_piece.pos = IVEC2(3, 0);
+        pattern_generate(&cur_piece.patt);
     }
     cur_state = STATE_SETTLING;
 }
