@@ -70,11 +70,16 @@ bool name##_dequeue_tail(TName *q, T *out)             \
 }                                                      \
                                                        \
 /* returns the size of the queue */                    \
-size_t name##_size(TName *q) {                         \
-    if (q->t >= q->h) {                                \
-        return q->t - q->h;                            \
-    } else {                                           \
-        return (size - q->h) + q->t;                   \
-    }                                                  \
+size_t name##_size(TName *q)                           \
+{                                                      \
+    return q->t >= q->h                                \
+        ? q->t - q->h                                  \
+        : (size - q->h) + q->t;                        \
+}                                                      \
+                                                       \
+/* peeks nth element of the queue */                   \
+T *name##_peek(size_t n)                               \
+{                                                      \
+    return &q->data[(q->t + n) % size];                \
 }                                                      \
 

@@ -46,7 +46,6 @@ bool block_down = false;
 // timer for each state; resets to zero on a state change
 i32 state_timer = 0;
 
-
 // TextInsert for some reason has a bug
 char *BetterTextInsert(const char *text, const char *insert, int position)
 {
