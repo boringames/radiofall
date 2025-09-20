@@ -52,9 +52,6 @@ int main(void)
     InitWindow(RESOLUTION[0] * SCALE, RESOLUTION[1] * SCALE, "raylib game template");
     InitAudioDevice();
 
-    double seed = GetTime();
-    printf("seed = %f\n", seed);
-    SetRandomSeed(seed);
     render_texture = LoadRenderTexture(RESOLUTION[0], RESOLUTION[1]);
 
     current_screen = SCREEN_TITLE;

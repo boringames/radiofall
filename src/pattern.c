@@ -1,6 +1,7 @@
 #include "pattern.h"
 #include "core/types.h"
 
+#include <stdio.h>
 #include <limits.h>
 #include <math.h>
 #include <raylib.h>
@@ -22,19 +23,25 @@ void pattern_normalize(Pattern *p)
 {
     // find minimum x,y of coordinates into pattern
     // then subtract those to each coords
+    iVec2 min = pattern_min(p);
+    for (i32 i = 0; i < p->count; i++) {
+        p->coords[i].x -= min.x;
+        p->coords[i].y -= min.y;
+    }
+}
+
+iVec2 pattern_min(Pattern *p)
+{
     i32 miny = INT_MAX;
     i32 minx = INT_MAX;
     for (i32 i = 0; i < p->count; i++) {
         miny = MIN(p->coords[i].y, miny);
         minx = MIN(p->coords[i].x, minx);
     }
-    for (i32 i = 0; i < p->count; i++) {
-        p->coords[i].y -= miny;
-        p->coords[i].x -= minx;
-    }
+    return IVEC2(minx, miny);
 }
 
-static iVec2 pattern_max(Pattern *p)
+iVec2 pattern_max(Pattern *p)
 {
     i32 maxy = INT_MIN;
     i32 maxx = INT_MIN;
@@ -45,7 +52,7 @@ static iVec2 pattern_max(Pattern *p)
     return IVEC2(maxx, maxy);
 }
 
-static iVec2 pattern_origin(Pattern *p)
+iVec2 pattern_origin(Pattern *p)
 {
     iVec2 m = pattern_max(p);
     return IVEC2(m.x/2, m.y/2);
@@ -56,11 +63,9 @@ void pattern_rotate(Pattern *p, bool ccw)
     iVec2 orig = pattern_origin(p);
     for (i32 i = 0; i < p->count; i++) {
         Vector2 v = Vector2Rotate(
-                Vector2Subtract(
-                    as_vec2(orig),
-                    as_vec2(p->coords[i])),
-                M_PI/2 * (ccw ? 1 : -1)
-                );
+            Vector2Subtract(as_vec2(orig), as_vec2(p->coords[i])),
+            M_PI/2 * (ccw ? 1 : -1)
+        );
         p->coords[i] = IVEC2(round(v.x), round(v.y));
     }
     orig = pattern_origin(p);
