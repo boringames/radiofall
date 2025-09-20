@@ -183,10 +183,10 @@ static void enter_settling_state()
 void game_update(f32 dt, i32 frame) {
     switch (cur_state) {
     case STATE_FALLING:
-        if (IsKeyPressed(KEY_Z)) {
+        if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
             Pattern p = { .count = cur_piece.patt.count };
             memcpy(p.coords, cur_piece.patt.coords, sizeof(iVec2) * p.count);
-            pattern_rotate(cur_piece.pos, &p);
+            pattern_rotate(&p, IsKeyPressed(KEY_Z));
             if (is_valid_pattern_pos(cur_piece.pos, &p)) {
                 memcpy(cur_piece.patt.coords, p.coords, sizeof(iVec2) * p.count);
             }
@@ -216,19 +216,31 @@ void game_update(f32 dt, i32 frame) {
     }
 }
 
-void draw_block(Vector2 pos, GridColor color)
+void draw_block(Vector2 pos, GridColor color, i32 frame)
 {
-    DrawTextureRec(blocks, rec(vec2((color-1) * GRID_CELL_SIDE, 0), vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)), pos, WHITE);
+    DrawTextureRec(blocks,
+        rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE), vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
+        pos,
+        WHITE
+    );
 }
 
-void game_draw() {
+i32 block_frameno = 0;
+i32 block_frame_step = 1;
+void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
 
+    if (frame % 16 == 0) {
+        block_frameno += block_frame_step;
+        if (block_frameno == 3 && block_frame_step == 1) block_frame_step *= -1;
+        if (block_frameno == 0 && block_frame_step == -1) block_frame_step *= -1;
+    }
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         Vector2 pos = as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]));
         draw_block(
             Vector2Add(Vector2Scale(pos, GRID_CELL_SIDE), grid_pos),
-            cur_piece.patt.color[i]
+            cur_piece.patt.color[i],
+            block_frameno
         );
     }
 
@@ -237,7 +249,8 @@ void game_draw() {
             if (grid.colors[y][x] != COLOR_EMPTY) {
                 draw_block(
                     Vector2Add(Vector2Scale(vec2(x, y), GRID_CELL_SIDE), grid_pos),
-                    grid.colors[y][x]
+                    grid.colors[y][x],
+                    block_frameno
                 );
             }
         }

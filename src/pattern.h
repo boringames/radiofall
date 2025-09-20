@@ -13,5 +13,5 @@ QUEUE_DECLARE(Pattern, PatternBuffer, pattbuf, 32)
 
 bool pattern_has_coord(Pattern *p, iVec2 v);
 void pattern_normalize(Pattern *p);
-void pattern_rotate(iVec2 base_pos, Pattern *p);
+void pattern_rotate(Pattern *p, bool ccw);
 void pattern_generate(Pattern *p);

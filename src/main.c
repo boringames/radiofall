@@ -11,7 +11,7 @@
 #endif
 
 static const i32 RESOLUTION[] = { 320, 240 };
-static const i32 SCALE = 2;
+static const i32 SCALE = 4;
 
 static bool on_transition = false;
 static GameScreen current_screen = SCREEN_TITLE;
@@ -32,7 +32,7 @@ struct {
 typedef struct ScreenInfo {
     void (*init)();
     void (*update)(f32, i32);
-    void (*draw)();
+    void (*draw)(f32, i32);
     void (*unload)();
     int (*finish)();
 } ScreenInfo;
@@ -128,7 +128,7 @@ void iterate(void *arg)
     BeginTextureMode(render_texture);
     ClearBackground(BLACK);
 
-    screen_table[current_screen].draw();
+    screen_table[current_screen].draw(dt, frameno);
 
     // Draw full screen rectangle in front of everything
     if (on_transition) {

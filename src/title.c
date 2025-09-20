@@ -17,7 +17,7 @@ void title_update(f32 dt, i32 frame)
     }
 }
 
-void title_draw()
+void title_draw(f32 dt, i32 frameno)
 {
     const char *text = "title... (press RETURN)";
     int width = MeasureText(text, 16);

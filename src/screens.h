@@ -11,18 +11,18 @@ typedef enum GameScreen {
 
 void title_init();
 void title_update(f32 dt, i32 frame);
-void title_draw();
+void title_draw(f32 dt, i32 frameno);
 void title_unload();
 int title_finish();
 
 void options_init();
 void options_update(f32 dt, i32 frame);
-void options_draw();
+void options_draw(f32 dt, i32 frameno);
 void options_unload();
 int options_finish();
 
 void game_init();
 void game_update(f32 dt, i32 frame);
-void game_draw();
+void game_draw(f32 dt, i32 frame);
 void game_unload();
 int game_finish();

@@ -11,7 +11,7 @@ void options_update(f32 dt, i32 frame)
 
 }
 
-void options_draw()
+void options_draw(f32 dt, i32 frameno)
 {
 
 }

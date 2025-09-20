@@ -1,4 +1,5 @@
 #include "pattern.h"
+#include "core/types.h"
 
 #include <limits.h>
 #include <math.h>
@@ -33,12 +34,42 @@ void pattern_normalize(Pattern *p)
     }
 }
 
-void pattern_rotate(iVec2 base_pos, Pattern *p)
+static iVec2 pattern_max(Pattern *p)
 {
+    i32 maxy = INT_MIN;
+    i32 maxx = INT_MIN;
     for (i32 i = 0; i < p->count; i++) {
-        Vector2 v = Vector2Rotate(as_vec2(p->coords[i]), M_PI/2);
+        maxy = MAX(p->coords[i].y, maxy);
+        maxx = MAX(p->coords[i].x, maxx);
+    }
+    return IVEC2(maxx, maxy);
+}
+
+static iVec2 pattern_origin(Pattern *p)
+{
+    iVec2 m = pattern_max(p);
+    return IVEC2(m.x/2, m.y/2);
+}
+
+void pattern_rotate(Pattern *p, bool ccw)
+{
+    iVec2 orig = pattern_origin(p);
+    for (i32 i = 0; i < p->count; i++) {
+        Vector2 v = Vector2Rotate(
+                Vector2Subtract(
+                    as_vec2(orig),
+                    as_vec2(p->coords[i])),
+                M_PI/2 * (ccw ? 1 : -1)
+                );
         p->coords[i] = IVEC2(round(v.x), round(v.y));
     }
+    orig = pattern_origin(p);
+    pattern_normalize(p);
+    for (i32 i = 0; i < p->count; i++) {
+        Vector2 v = Vector2Add(as_vec2(p->coords[i]), as_vec2(orig));
+        p->coords[i] = IVEC2(round(v.x), round(v.y));
+    }
+    pattern_normalize(p);
 }
 
 void pattern_generate(Pattern *p)
