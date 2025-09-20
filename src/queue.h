@@ -13,6 +13,7 @@ T *name##_enqueue_ptr(TName *q);                    \
 bool name##_dequeue(TName *q, T *out);              \
 bool name##_dequeue_tail(TName *q, T *out);         \
 size_t name##_size(TName *q);                       \
+T *name##_peek(TName *q);                           \
 
 #define QUEUE_DEFINE(T, TName, name, size)             \
 /* initialize a queue. data is not initialized */      \
@@ -81,5 +82,11 @@ size_t name##_size(TName *q)                           \
 T *name##_peek(size_t n)                               \
 {                                                      \
     return &q->data[(q->t + n) % size];                \
+}                                                      \
+                                                       \
+/* peeks at the first item about to get dequeued */    \
+T *name##_peek(TName *q) {                             \
+    if (q->h == q->t) return NULL;                     \
+    return &q->data[q->h];                             \
 }                                                      \
 
