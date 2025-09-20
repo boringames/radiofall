@@ -22,6 +22,7 @@ struct {
 } grid;
 
 PatternBuffer pattern_buffer;
+PatternBuffer matched_patterns;
 
 struct {
     iVec2 pos;
@@ -31,6 +32,7 @@ struct {
 enum {
     STATE_FALLING,
     STATE_SETTLING,
+    STATE_SHOW_MATCHES,
     STATE_END,
 } cur_state;
 
@@ -38,7 +40,12 @@ Texture2D field_ui;
 Texture2D field_ui_bg;
 Texture2D blocks;
 
+// true when the player has just positioned a piece
 bool block_down = false;
+
+// timer for each state; resets to zero on a state change
+i32 state_timer = 0;
+
 
 // TextInsert for some reason has a bug
 char *BetterTextInsert(const char *text, const char *insert, int position)
@@ -107,25 +114,7 @@ Texture2D load_texture(const char *path)
     return t;
 }
 
-void game_init() {
-    field_ui = load_texture("resources/ui.png");
-    field_ui_bg = load_texture("resources/ui_bg.png");
-    blocks = load_texture("resources/blocks.png");
-
-    // i32 nmaps = 0;
-    // LoaderMap *maps = loader_load_maps("", &nmaps);
-    // i32 map_id = GetRandomValue(0, nmaps);
-    for (i32 y = 0; y < GRID_HEIGHT; y++)
-        for (i32 x = 0; x < GRID_WIDTH; x++)
-            grid.colors[y][x] = COLOR_EMPTY; // maps[map_id][y][x];
-
-    cur_state = STATE_FALLING;
-    pattbuf_init(&pattern_buffer);
-    pattern_generate(&cur_piece.patt);
-    cur_piece.pos = IVEC2(3, 0);
-}
-
-static void grid_sweep() {
+static bool grid_sweep() {
     for (i32 i = 0; i < GRID_HEIGHT; i++)
         for (i32 j = 0; j < GRID_WIDTH; j++)
             grid.visited[i][j] = false;
@@ -149,45 +138,71 @@ static void grid_sweep() {
                 for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
                 }
+                pattbuf_enqueue(&matched_patterns, *p);
                 pattern_normalize(p);
             }
         }
     }
+    return pattbuf_size(&matched_patterns);
 }
 
-static void enter_settling_state()
+static void enter_falling_state()
+{
+    if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
+        for (i32 i = 0; i < cur_piece.patt.count; i++) {
+            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
+        }
+    } else {
+        pattern_generate(&cur_piece.patt);
+    }
+    cur_piece.pos = IVEC2(3, 0);
+
+    if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
+        cur_state = STATE_END;
+    } else {
+        cur_state = STATE_FALLING;
+    }
+    state_timer = 0;
+}
+
+static void exit_falling_state()
 {
     // copy current falling piece to grid
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
         grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
     }
-
-    grid_sweep();
-
-    if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
-        cur_piece.pos = IVEC2(3, 0);
-        for (i32 i = 0; i < cur_piece.patt.count; i++) {
-            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
-        }
-    } else {
-        cur_piece.pos = IVEC2(3, 0);
-        pattern_generate(&cur_piece.patt);
-    }
-
-    if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
-        cur_state = STATE_END;
-    } else {
-        cur_state = STATE_SETTLING;
-    }
+    cur_piece.pos = IVEC2(-100, -100);
+    cur_state = STATE_SETTLING;
+    state_timer = 0;
 }
 
-bool is_key_down(int key, i32 frame, i32 time)
+bool is_key_down(int key, i32 timer, i32 time)
 {
-    return IsKeyDown(key) && frame % time == 0;
+    return IsKeyDown(key) && timer % time == 0;
+}
+
+void game_init() {
+    field_ui = load_texture("resources/ui.png");
+    field_ui_bg = load_texture("resources/ui_bg.png");
+    blocks = load_texture("resources/blocks.png");
+
+    // i32 nmaps = 0;
+    // LoaderMap *maps = loader_load_maps("", &nmaps);
+    // i32 map_id = GetRandomValue(0, nmaps);
+    for (i32 y = 0; y < GRID_HEIGHT; y++)
+        for (i32 x = 0; x < GRID_WIDTH; x++)
+            grid.colors[y][x] = COLOR_EMPTY; // maps[map_id][y][x];
+
+    pattbuf_init(&pattern_buffer);
+    pattbuf_init(&matched_patterns);
+
+    state_timer = 0;
+    enter_falling_state();
 }
 
 void game_update(f32 dt, i32 frame) {
+    state_timer++;
     switch (cur_state) {
     case STATE_FALLING:
         if (block_down && !IsKeyDown(KEY_DOWN)) {
@@ -203,22 +218,54 @@ void game_update(f32 dt, i32 frame) {
             }
         }
 
-        i32 xdir = -is_key_down(KEY_LEFT, frame, 8) + is_key_down(KEY_RIGHT, frame, 8);
+        i32 xdir = -is_key_down(KEY_LEFT, state_timer, 8) + is_key_down(KEY_RIGHT, state_timer, 8);
         if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
             xdir = 0;
         }
-        i32 ydir = (!block_down && is_key_down(KEY_DOWN, frame, 3)) || frame % 64 == 0;
+        i32 ydir = (!block_down && is_key_down(KEY_DOWN, state_timer, 3)) || state_timer % 64 == 0;
         if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
             cur_piece.pos.x += xdir;
-            enter_settling_state();
+            exit_falling_state();
         } else {
             cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
         }
         break;
     case STATE_SETTLING:
         block_down = true;
-        // do some animations
-        cur_state = STATE_FALLING;
+
+        if (state_timer % 6 == 0) {
+            // push down by 1 all blocks in the grid
+            // that don't have anything below them
+            bool all_settled = true;
+            for (i32 y = GRID_HEIGHT - 2; y >= 0; y--) {
+                for (i32 x = 0; x < GRID_WIDTH; x++) {
+                    if (grid.colors[y][x] != COLOR_EMPTY && grid.colors[y+1][x] == COLOR_EMPTY) {
+                        grid.colors[y+1][x] = grid.colors[y][x];
+                        grid.colors[y][x] = COLOR_EMPTY;
+                        all_settled = false;
+                    }
+                }
+            }
+
+            if (all_settled) {
+                if (grid_sweep()) {
+                    cur_state = STATE_SHOW_MATCHES;
+                    state_timer = 0;
+                } else {
+                    enter_falling_state();
+                }
+            }
+        }
+        break;
+    case STATE_SHOW_MATCHES:
+        while (pattbuf_size(&matched_patterns) != 0) {
+            pattbuf_dequeue(&matched_patterns, NULL);
+            // possibily do something i guess
+        }
+        if (state_timer == 32) {
+            cur_state = STATE_SETTLING;
+            state_timer = 0;
+        }
         break;
     default:
         break;
@@ -238,25 +285,16 @@ void draw_block(Vector2 pos, GridColor color, i32 frame)
     );
 }
 
-i32 block_frameno = 0;
-i32 block_frame_step = 1;
+const i32 frames[] = { 0, 1, 2, 3, 2, 1, };
 
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
 
-    if (frame % 16 == 0) {
-        block_frameno += block_frame_step;
-        if (block_frameno == 3 && block_frame_step == 1) block_frame_step *= -1;
-        if (block_frameno == 0 && block_frame_step == -1) block_frame_step *= -1;
-    }
+    i32 block_frameno = frames[(frame/16) % COUNT_OF(frames)];
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
-        Vector2 pos = as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]));
-        draw_block(
-            Vector2Add(Vector2Scale(pos, GRID_CELL_SIDE), grid_pos),
-            cur_piece.patt.color[i],
-            block_frameno
-        );
+        Vector2 pos = Vector2Scale(as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i])), GRID_CELL_SIDE);
+        draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
     }
 
     for (i32 y = 0; y < GRID_HEIGHT; y++) {
