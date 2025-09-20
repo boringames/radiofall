@@ -38,6 +38,8 @@ Texture2D field_ui;
 Texture2D field_ui_bg;
 Texture2D blocks;
 
+bool block_down = false;
+
 // TextInsert for some reason has a bug
 char *BetterTextInsert(const char *text, const char *insert, int position)
 {
@@ -180,9 +182,18 @@ static void enter_settling_state()
     }
 }
 
+bool is_key_down(int key, i32 frame, i32 time)
+{
+    return IsKeyDown(key) && frame % time == 0;
+}
+
 void game_update(f32 dt, i32 frame) {
     switch (cur_state) {
     case STATE_FALLING:
+        if (block_down && !IsKeyDown(KEY_DOWN)) {
+            block_down = false;
+        }
+
         if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
             Pattern p = { .count = cur_piece.patt.count };
             memcpy(p.coords, cur_piece.patt.coords, sizeof(iVec2) * p.count);
@@ -191,11 +202,12 @@ void game_update(f32 dt, i32 frame) {
                 memcpy(cur_piece.patt.coords, p.coords, sizeof(iVec2) * p.count);
             }
         }
-        i32 xdir = -IsKeyPressed(KEY_LEFT) + IsKeyPressed(KEY_RIGHT);
+
+        i32 xdir = -is_key_down(KEY_LEFT, frame, 8) + is_key_down(KEY_RIGHT, frame, 8);
         if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
             xdir = 0;
         }
-        i32 ydir = IsKeyPressed(KEY_DOWN) || frame % 64 == 0;
+        i32 ydir = (!block_down && is_key_down(KEY_DOWN, frame, 3)) || frame % 64 == 0;
         if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
             cur_piece.pos.x += xdir;
             enter_settling_state();
@@ -204,6 +216,7 @@ void game_update(f32 dt, i32 frame) {
         }
         break;
     case STATE_SETTLING:
+        block_down = true;
         // do some animations
         cur_state = STATE_FALLING;
         break;
@@ -227,6 +240,7 @@ void draw_block(Vector2 pos, GridColor color, i32 frame)
 
 i32 block_frameno = 0;
 i32 block_frame_step = 1;
+
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
 
@@ -235,6 +249,7 @@ void game_draw(f32 dt, i32 frame) {
         if (block_frameno == 3 && block_frame_step == 1) block_frame_step *= -1;
         if (block_frameno == 0 && block_frame_step == -1) block_frame_step *= -1;
     }
+
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         Vector2 pos = as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]));
         draw_block(
