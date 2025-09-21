@@ -307,7 +307,10 @@ void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
     DrawText(TextFormat("SCORE: %d", score), 16, 8, 8, WHITE);
 
-    i32 block_frameno = frames[(frame/16) % COUNT_OF(frames)];
+    i32 bg_frame = ((frame / 8) % 2) * 128;
+    DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), grid_pos, WHITE);
+
+    i32 block_frameno = frames[(frame/64) % COUNT_OF(frames)];
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         Vector2 pos = Vector2Scale(as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i])), GRID_CELL_SIDE);

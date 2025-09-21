@@ -34,7 +34,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 if ("${PLATFORM}" STREQUAL "Web")
     add_custom_command(
         TARGET ${PROJECT_NAME} PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/../resources
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+        COMMAND bash ${CMAKE_SOURCE_DIR}/src/tools/setup-resources.sh ${CMAKE_SOURCE_DIR} $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
 else()
     add_custom_command(
