@@ -75,4 +75,11 @@ size_t name##_size(TName *q)                           \
     return q->t >= q->h                                \
         ? q->t - q->h                                  \
         : (size - q->h) + q->t;                        \
-}                                                      
+}                                                      \
+                                                       \
+/* peeks nth element of the queue */                   \
+T *name##_peek(TName *q, size_t n)                     \
+{                                                      \
+    return &q->data[(q->t + n) % size];                \
+}                                                      \
+
