@@ -50,12 +50,17 @@ Texture2D field_ui_bg;
 Texture2D preview1;
 Texture2D preview2;
 Texture2D blocks;
+Texture2D volume_img;
 
 // true when the player has just positioned a piece
 bool block_down = false;
 
 // timer for each state; resets to zero on a state change
 i32 state_timer = 0;
+
+#define COOLDOWN_MAX 20
+
+i32 volume_cooldown = 0;
 
 // TextInsert for some reason has a bug
 char *BetterTextInsert(const char *text, const char *insert, int position)
@@ -181,6 +186,7 @@ void game_init() {
     preview1 = load_texture("resources/ui_preview1.png");
     preview2 = load_texture("resources/ui_preview2.png");
     blocks = load_texture("resources/blocks.png");
+    volume_img = load_texture("resources/volume.png");
 
     // i32 nmaps = 0;
     // LoaderMap *maps = loader_load_maps("", &nmaps);
@@ -207,6 +213,7 @@ void animate_score(void *context, f32 dt, i32 frameno) {
 
 void game_update(f32 dt, i32 frame) {
     state_timer++;
+
     switch (cur_state) {
     case STATE_FALLING:
         if (block_down && !IsKeyDown(KEY_DOWN)) {
@@ -232,6 +239,13 @@ void game_update(f32 dt, i32 frame) {
             exit_falling_state();
         } else {
             cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
+        }
+
+        if (frame % 128 == 0) {
+            volume_cooldown = CLAMP(volume_cooldown + 1, 0, COOLDOWN_MAX);
+            if (volume_cooldown == COOLDOWN_MAX) {
+                cur_state = STATE_END;
+            }
         }
         break;
     case STATE_SETTLING:
@@ -267,9 +281,10 @@ void game_update(f32 dt, i32 frame) {
         i32 matched_count = 0;
         while (pattbuf_size(&matched_patterns) != 0) {
             Pattern out;
-            if (pattbuf_dequeue(&matched_patterns, &out) && out.count > PATTERN_MATCH_MIN) {
+            if (pattbuf_dequeue(&matched_patterns, &out)) {
                 matched_count++;
                 local_score += out.count;
+                volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
                 MatchInfo m;
                 m.pcount = out.count;
                 m.pos = pattern_min(&out);
@@ -338,7 +353,7 @@ void game_draw(f32 dt, i32 frame) {
         draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
     }
 
-    draw_preview(0, vec2(7, 28), vec2(68, 47), preview1, frame);
+    draw_preview(0, vec2(7,  28), vec2(68, 47), preview1, frame);
     draw_preview(1, vec2(8, 165), vec2(64, 65), preview2, frame);
 
     for (i32 y = 0; y < GRID_HEIGHT; y++) {
@@ -353,8 +368,16 @@ void game_draw(f32 dt, i32 frame) {
         }
     }
 
+
     apool_update(dt);
     DrawTexture(field_ui, 0, 0, WHITE);
+    Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
+    DrawTexturePro(
+        volume_img,
+        rec(vec2(0, 0), volume_size),
+        rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
+        vec2(0, 0), 0, WHITE
+    );
 }
 
 void game_unload()

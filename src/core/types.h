@@ -31,6 +31,7 @@ static inline iVec2 ivec2_scale(iVec2 v, i32 x) { return (iVec2) { .x = v.x * x,
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define CLAMP(x, a, b) MIN(b, MAX(a, x))
 
 static inline Rectangle rec(Vector2 pos, Vector2 size) {
     return (Rectangle) {
