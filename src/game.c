@@ -129,7 +129,11 @@ static bool grid_sweep() {
                 for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
                 }
+                for (i32 i = 0; i < p->count; i++) {
+                    p->color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
+                }
                 pattbuf_enqueue(&matched_patterns, *p);
+                pattern_normalize(p);
             }
         }
     }
@@ -139,12 +143,7 @@ static bool grid_sweep() {
 
 static void enter_falling_state()
 {
-    if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
-        pattern_normalize(&cur_piece.patt);
-        for (i32 i = 0; i < cur_piece.patt.count; i++) {
-            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
-        }
-    } else {
+    if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         pattern_generate(&cur_piece.patt);
     }
     cur_piece.pos = IVEC2(3, 0);
@@ -295,10 +294,22 @@ void game_update(f32 dt, i32 frame) {
 void draw_block(Vector2 pos, GridColor color, i32 frame)
 {
     DrawTextureRec(blocks,
-            rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE), vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
-            pos,
-            WHITE
-            );
+        rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE),
+            vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
+        pos, WHITE
+    );
+}
+
+void draw_preview(Pattern *p, Vector2 where, Vector2 box_size)
+{
+    iVec2 max = pattern_max(p);
+    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+    Vector2 base_pos = vec2(where.x + floorf((box_size.x - patt_size.x) * 0.5f),
+                            where.y + floorf((box_size.y - patt_size.y) * 0.5f));
+    for (i32 i = 0; i < p->count; i++) {
+        Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
+        draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
+    }
 }
 
 const i32 frames[] = { 0, 1, 2, 3, 2, 1, };
@@ -315,6 +326,13 @@ void game_draw(f32 dt, i32 frame) {
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         Vector2 pos = Vector2Scale(as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i])), GRID_CELL_SIDE);
         draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
+    }
+
+    if (pattbuf_size(&pattern_buffer) > 0) {
+        draw_preview(pattbuf_peek(&pattern_buffer, 0), vec2(7, 28), vec2(68, 47));
+    }
+    if (pattbuf_size(&pattern_buffer) > 1) {
+        draw_preview(pattbuf_peek(&pattern_buffer, 1), vec2(8, 165), vec2(64, 65));
     }
 
     for (i32 y = 0; y < GRID_HEIGHT; y++) {
