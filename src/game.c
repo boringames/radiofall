@@ -123,23 +123,24 @@ static bool grid_sweep() {
 
             p->count = 0;
             find_pattern(IVEC2(j, i), grid.colors[i][j], p);
-            if (p->count < 4) {
+            if (p->count <= PATTERN_MATCH_MIN) {
                 pattbuf_dequeue_tail(&pattern_buffer, NULL);
             } else {
-                for (i32 k=0; k<p->count; k++)
+                for (i32 k=0; k<p->count; k++) {
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
-            }
-            if (p->count > PATTERN_MATCH_MIN) {
+                }
                 pattbuf_enqueue(&matched_patterns, *p);
             }
         }
     }
+
     return pattbuf_size(&matched_patterns);
 }
 
 static void enter_falling_state()
 {
     if (pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
+        pattern_normalize(&cur_piece.patt);
         for (i32 i = 0; i < cur_piece.patt.count; i++) {
             cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
         }
@@ -262,8 +263,10 @@ void game_update(f32 dt, i32 frame) {
         i32 local_score = 0;
         i32 matched_count = 0;
         while (pattbuf_size(&matched_patterns) != 0) {
-            Pattern out; if (pattbuf_dequeue(&matched_patterns, &out) && out.count > PATTERN_MATCH_MIN) {
-                matched_count++; local_score += out.count;
+            Pattern out;
+            if (pattbuf_dequeue(&matched_patterns, &out) && out.count > PATTERN_MATCH_MIN) {
+                matched_count++;
+                local_score += out.count;
                 MatchInfo m;
                 m.pcount = out.count;
                 m.pos = pattern_min(&out);
