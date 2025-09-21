@@ -18,3 +18,6 @@ iVec2 pattern_origin(Pattern *p);
 void pattern_normalize(Pattern *p);
 void pattern_rotate(Pattern *p, bool ccw);
 void pattern_generate(Pattern *p);
+iVec2 pattern_min(Pattern *p);
+iVec2 pattern_max(Pattern *p);
+iVec2 pattern_origin(Pattern *p);
