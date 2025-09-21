@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include "core/types.h"
+#include "queue.h"
 
 #define GRID_WIDTH 8
 #define GRID_HEIGHT 13
@@ -15,5 +16,10 @@ typedef enum GridColor {
     COLOR_YELLOW,
     COLOR_COUNT,
 } GridColor;
+
+typedef struct {
+    iVec2 pos; // origin of the pattern match and just "sweeped"
+    i32 pcount;
+} MatchInfo;
 
 static const iVec2 DIRS[4] = { IVEC2(1, 0), IVEC2(-1, 0), IVEC2(0, 1), IVEC2(0, -1) };

@@ -13,6 +13,7 @@
 #include "loader.h"
 #include "util.h"
 #include "pattern.h"
+#include "animation_pool.h"
 
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
 
@@ -23,6 +24,12 @@ struct {
 
 PatternBuffer pattern_buffer;
 PatternBuffer matched_patterns;
+
+static const Vector2 GRID_POS = {96, 16};
+i32 block_frameno = 0;
+i32 block_frame_step = 1;
+
+i32 score = 0;
 
 struct {
     iVec2 pos;
@@ -61,23 +68,6 @@ char *BetterTextInsert(const char *text, const char *insert, int position)
     result[textLen + insertLen] = '\0';     // Make sure text string is valid!
 
     return result;
-}
-
-static Color grid_cell_color(u8 c) {
-    switch (c)
-    {
-    case COLOR_BLUE:
-    return BLUE;
-    case COLOR_RED:
-    return RED;
-    case COLOR_GREEN:
-    return GREEN;
-    case COLOR_YELLOW:
-    return YELLOW;
-    default:
-        GAME_LOG_ERR("no color matched, got value %d\n", c);
-        return BLACK;
-    }
 }
 
 // check if (base_pos, pattern) is valid inside the grid
@@ -134,12 +124,10 @@ static bool grid_sweep() {
             if (p->count < 4) {
                 pattbuf_dequeue_tail(&pattern_buffer, NULL);
             } else {
-                for (i32 k=0; k<p->count; k++) {
+                for (i32 k=0; k<p->count; k++)
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
-                }
-                pattbuf_enqueue(&matched_patterns, *p);
-                pattern_normalize(p);
             }
+            pattbuf_enqueue(&matched_patterns, *p);
         }
     }
     return pattbuf_size(&matched_patterns);
@@ -196,8 +184,17 @@ void game_init() {
     pattbuf_init(&pattern_buffer);
     pattbuf_init(&matched_patterns);
 
+    score = 0;
     state_timer = 0;
     enter_falling_state();
+}
+
+void animate_score(void *context, f32 dt, i32 frameno) {
+    MatchInfo *m = (MatchInfo *)(context);
+    DrawText(TextFormat("+%d", m->pcount),
+            (m->pos.x * GRID_CELL_SIDE) + GRID_POS.x + cos(frameno) ,
+            (m->pos.y * GRID_CELL_SIDE) + GRID_POS.y + sin(frameno),
+            12, WHITE);
 }
 
 void game_update(f32 dt, i32 frame) {
@@ -256,11 +253,25 @@ void game_update(f32 dt, i32 frame) {
             }
         }
         break;
+
     case STATE_SHOW_MATCHES:
+        i32 local_score = 0;
+        i32 matched_count = 0;
         while (pattbuf_size(&matched_patterns) != 0) {
-            pattbuf_dequeue(&matched_patterns, NULL);
-            // possibily do something i guess
+            Pattern out; if (pattbuf_dequeue(&matched_patterns, &out) && out.count > 3) {
+                matched_count++; local_score += out.count;
+                MatchInfo m;
+                m.pcount = out.count;
+                m.pos = pattern_min(&out);
+                pattern_normalize(&out);
+                iVec2 pattern_orig = pattern_origin(&out);
+                m.pos.x += pattern_orig.x;
+                m.pos.y += pattern_orig.y;
+                apool_add(animate_score, 128, (void *)&m, sizeof(MatchInfo));
+            }
         }
+        score += local_score * matched_count;
+
         if (state_timer == 32) {
             cur_state = STATE_SETTLING;
             state_timer = 0;
@@ -278,16 +289,17 @@ void game_update(f32 dt, i32 frame) {
 void draw_block(Vector2 pos, GridColor color, i32 frame)
 {
     DrawTextureRec(blocks,
-        rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE), vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
-        pos,
-        WHITE
-    );
+            rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE), vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
+            pos,
+            WHITE
+            );
 }
 
 const i32 frames[] = { 0, 1, 2, 3, 2, 1, };
 
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
+    DrawText(TextFormat("SCORE: %d", score), 16, 8, 8, WHITE);
 
     i32 block_frameno = frames[(frame/16) % COUNT_OF(frames)];
 
@@ -300,14 +312,15 @@ void game_draw(f32 dt, i32 frame) {
         for (i32 x = 0; x < GRID_WIDTH; x++) {
             if (grid.colors[y][x] != COLOR_EMPTY) {
                 draw_block(
-                    Vector2Add(Vector2Scale(vec2(x, y), GRID_CELL_SIDE), grid_pos),
-                    grid.colors[y][x],
-                    block_frameno
-                );
+                        Vector2Add(Vector2Scale(vec2(x, y), GRID_CELL_SIDE), GRID_POS),
+                        grid.colors[y][x],
+                        block_frameno
+                        );
             }
         }
     }
 
+    apool_update(dt);
     DrawTexture(field_ui, 0, 0, WHITE);
 }
 
