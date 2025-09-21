@@ -15,6 +15,8 @@
 #include "pattern.h"
 #include "animation_pool.h"
 
+#define PATTERN_MATCH_MIN 3
+
 #define IN_GRID(v) (v.y >= 0 && v.y < GRID_HEIGHT && v.x >= 0 && v.x < GRID_WIDTH)
 
 struct {
@@ -127,7 +129,9 @@ static bool grid_sweep() {
                 for (i32 k=0; k<p->count; k++)
                     grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
             }
-            pattbuf_enqueue(&matched_patterns, *p);
+            if (p->count > PATTERN_MATCH_MIN) {
+                pattbuf_enqueue(&matched_patterns, *p);
+            }
         }
     }
     return pattbuf_size(&matched_patterns);
@@ -258,7 +262,7 @@ void game_update(f32 dt, i32 frame) {
         i32 local_score = 0;
         i32 matched_count = 0;
         while (pattbuf_size(&matched_patterns) != 0) {
-            Pattern out; if (pattbuf_dequeue(&matched_patterns, &out) && out.count > 3) {
+            Pattern out; if (pattbuf_dequeue(&matched_patterns, &out) && out.count > PATTERN_MATCH_MIN) {
                 matched_count++; local_score += out.count;
                 MatchInfo m;
                 m.pcount = out.count;
@@ -271,7 +275,6 @@ void game_update(f32 dt, i32 frame) {
             }
         }
         score += local_score * matched_count;
-
         if (state_timer == 32) {
             cur_state = STATE_SETTLING;
             state_timer = 0;
