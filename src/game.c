@@ -47,6 +47,8 @@ enum {
 
 Texture2D field_ui;
 Texture2D field_ui_bg;
+Texture2D preview1;
+Texture2D preview2;
 Texture2D blocks;
 
 // true when the player has just positioned a piece
@@ -176,6 +178,8 @@ bool is_key_down(int key, i32 timer, i32 time)
 void game_init() {
     field_ui = load_texture("resources/ui.png");
     field_ui_bg = load_texture("resources/ui_bg.png");
+    preview1 = load_texture("resources/ui_preview1.png");
+    preview2 = load_texture("resources/ui_preview2.png");
     blocks = load_texture("resources/blocks.png");
 
     // i32 nmaps = 0;
@@ -300,8 +304,14 @@ void draw_block(Vector2 pos, GridColor color, i32 frame)
     );
 }
 
-void draw_preview(Pattern *p, Vector2 where, Vector2 box_size)
+void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 frame)
 {
+    i32 bg_frame = ((frame / 8) % 2) * box_size.x;
+    DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
+    if (pattbuf_size(&pattern_buffer) < n) {
+        return;
+    }
+    Pattern *p = pattbuf_peek(&pattern_buffer, n);
     iVec2 max = pattern_max(p);
     Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
     Vector2 base_pos = vec2(where.x + floorf((box_size.x - patt_size.x) * 0.5f),
@@ -328,12 +338,8 @@ void game_draw(f32 dt, i32 frame) {
         draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
     }
 
-    if (pattbuf_size(&pattern_buffer) > 0) {
-        draw_preview(pattbuf_peek(&pattern_buffer, 0), vec2(7, 28), vec2(68, 47));
-    }
-    if (pattbuf_size(&pattern_buffer) > 1) {
-        draw_preview(pattbuf_peek(&pattern_buffer, 1), vec2(8, 165), vec2(64, 65));
-    }
+    draw_preview(0, vec2(7, 28), vec2(68, 47), preview1, frame);
+    draw_preview(1, vec2(8, 165), vec2(64, 65), preview2, frame);
 
     for (i32 y = 0; y < GRID_HEIGHT; y++) {
         for (i32 x = 0; x < GRID_WIDTH; x++) {
