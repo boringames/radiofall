@@ -52,6 +52,9 @@ Texture2D preview2;
 Texture2D blocks;
 Texture2D volume_img;
 
+Sound match_sfx;
+Sound rotate_sfx;
+
 // true when the player has just positioned a piece
 bool block_down = false;
 
@@ -120,6 +123,15 @@ Texture2D load_texture(const char *path)
     Texture2D t = LoadTexture(realpath);
     RL_FREE(realpath);
     return t;
+}
+
+Sound load_sound(const char *path)
+{
+    const char *appdir = GetApplicationDirectory();
+    char *realpath = BetterTextInsert(appdir, path, strlen(appdir));
+    Sound s = LoadSound(realpath);
+    RL_FREE(realpath);
+    return s;
 }
 
 static bool grid_sweep() {
@@ -198,6 +210,9 @@ void game_init() {
     blocks = load_texture("resources/blocks.png");
     volume_img = load_texture("resources/volume.png");
 
+    match_sfx = load_sound("resources/match.wav");
+    rotate_sfx = load_sound("resources/rotate.wav");
+
     // i32 nmaps = 0;
     // LoaderMap *maps = loader_load_maps("", &nmaps);
     // i32 map_id = GetRandomValue(0, nmaps);
@@ -233,6 +248,8 @@ void game_update(f32 dt, i32 frame) {
         }
 
         if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
+            PlaySound(rotate_sfx);
+
             Pattern p = { .count = cur_piece.patt.count };
             memcpy(p.coords, cur_piece.patt.coords, sizeof(iVec2) * p.count);
             pattern_rotate(&p, IsKeyPressed(KEY_Z));
@@ -294,6 +311,8 @@ void game_update(f32 dt, i32 frame) {
         while (pattbuf_size(&matched_patterns) != 0) {
             Pattern out;
             if (pattbuf_dequeue(&matched_patterns, &out)) {
+                PlaySound(match_sfx);
+
                 matched_count++;
                 local_score += out.count;
                 volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
