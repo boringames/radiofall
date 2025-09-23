@@ -1,7 +1,6 @@
 #include "animation_pool.h"
 
 #include "core/types.h"
-#include "core/log.h"
 #include "raylib.h"
 #include "util.h"
 

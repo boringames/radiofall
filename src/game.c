@@ -10,7 +10,6 @@
 #include "core/types.h"
 #include "screens.h"
 #include "queue.h"
-#include "loader.h"
 #include "util.h"
 #include "pattern.h"
 #include "animation_pool.h"
@@ -32,6 +31,7 @@ i32 block_frameno = 0;
 i32 block_frame_step = 1;
 
 i32 score = 0;
+i32 total_matched = 0;
 
 struct {
     iVec2 pos;
@@ -77,6 +77,16 @@ char *BetterTextInsert(const char *text, const char *insert, int position)
     result[textLen + insertLen] = '\0';     // Make sure text string is valid!
 
     return result;
+}
+
+void DrawTextCentered(const char *text, Vector2 position, int padding, Color color, Font font, float fontSize, float spacing)
+{
+    Vector2 textSize = MeasureTextEx(font, text, fontSize, spacing);
+    Vector2 drawPos = {
+        position.x - (textSize.x + 2 * padding) / 2,
+        position.y - (textSize.y + 2 * padding) / 2
+    };
+    DrawTextEx(font, text, drawPos, fontSize, spacing, color);
 }
 
 // check if (base_pos, pattern) is valid inside the grid
@@ -199,6 +209,8 @@ void game_init() {
     pattbuf_init(&matched_patterns);
 
     score = 0;
+    volume_cooldown = 0;
+    total_matched = 0;
     state_timer = 0;
     enter_falling_state();
 }
@@ -241,7 +253,7 @@ void game_update(f32 dt, i32 frame) {
             cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
         }
 
-        if (frame % 128 == 0) {
+        if (frame % 64 == 0) {
             volume_cooldown = CLAMP(volume_cooldown + 1, 0, COOLDOWN_MAX);
             if (volume_cooldown == COOLDOWN_MAX) {
                 cur_state = STATE_END;
@@ -296,6 +308,7 @@ void game_update(f32 dt, i32 frame) {
             }
         }
         score += local_score * matched_count;
+        total_matched += matched_count;
         if (state_timer == 32) {
             cur_state = STATE_SETTLING;
             state_timer = 0;
@@ -341,8 +354,6 @@ const i32 frames[] = { 0, 1, 2, 3, 2, 1, };
 
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
-    DrawText(TextFormat("SCORE: %d", score), 16, 8, 8, WHITE);
-
     i32 bg_frame = ((frame / 8) % 2) * 128;
     DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), grid_pos, WHITE);
 
@@ -368,16 +379,21 @@ void game_draw(f32 dt, i32 frame) {
         }
     }
 
-
     apool_update(dt);
+
     DrawTexture(field_ui, 0, 0, WHITE);
-    Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
-    DrawTexturePro(
-        volume_img,
-        rec(vec2(0, 0), volume_size),
-        rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
-        vec2(0, 0), 0, WHITE
-    );
+    {
+        DrawTextCentered(TextFormat("%d", score), (Vector2){280, 34}, 2, WHITE, GetFontDefault(), 12, 1);
+        DrawTextCentered(TextFormat("%d", total_matched), (Vector2){280, 54}, 2, WHITE, GetFontDefault(), 12, 1);
+
+        Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
+        DrawTexturePro(
+            volume_img,
+            rec(vec2(0, 0), volume_size),
+            rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
+            vec2(0, 0), 0, WHITE
+        );
+    }
 }
 
 void game_unload()
