@@ -241,6 +241,9 @@ void animate_score(void *context, f32 dt, i32 frameno) {
 void game_update(f32 dt, i32 frame) {
     state_timer++;
 
+    i32 local_score = 0;
+    i32 matched_count = 0;
+
     switch (cur_state) {
     case STATE_FALLING:
         if (block_down && !IsKeyDown(KEY_DOWN)) {
@@ -306,8 +309,6 @@ void game_update(f32 dt, i32 frame) {
         break;
 
     case STATE_SHOW_MATCHES:
-        i32 local_score = 0;
-        i32 matched_count = 0;
         while (pattbuf_size(&matched_patterns) != 0) {
             Pattern out;
             if (pattbuf_dequeue(&matched_patterns, &out)) {
