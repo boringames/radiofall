@@ -1,11 +1,11 @@
 #include "pattern.h"
-#include "core/types.h"
 
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
 #include <raylib.h>
 #include <raymath.h>
+#include "util.h"
 
 QUEUE_DEFINE(Pattern, PatternBuffer, pattbuf, 32)
 

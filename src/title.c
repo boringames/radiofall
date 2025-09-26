@@ -1,11 +1,19 @@
 #include <raylib.h>
-#include "screens.h"
-
-static const i32 RESOLUTION[] = { 320, 240 };
+#include "title.h"
 
 bool start = false;
 
-void title_init()
+void title_load()
+{
+
+}
+
+void title_unload()
+{
+
+}
+
+void title_enter()
 {
     start = false;
 }
@@ -24,12 +32,7 @@ void title_draw(f32 dt, i32 frameno)
     DrawText(text, RESOLUTION[0]/2 - width/2, RESOLUTION[1]/2, 16, WHITE);
 }
 
-void title_unload()
-{
-
-}
-
-int title_finish()
+GameScreen title_exit()
 {
     return start ? SCREEN_GAMEPLAY : SCREEN_UNKNOWN;
 }

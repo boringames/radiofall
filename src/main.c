@@ -2,15 +2,15 @@
 #include <stdio.h>
 #include <raylib.h>
 #include <raymath.h>
-#include "screens.h"
-#include "core/types.h"
+#include "util.h"
 #include "game.h"
+#include "title.h"
+#include "main.h"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 
-static const i32 RESOLUTION[] = { 320, 240 };
 static const i32 SCALE = 4;
 
 static bool on_transition = false;
@@ -30,17 +30,15 @@ struct {
 };
 
 typedef struct ScreenInfo {
-    void (*init)();
+    void (*enter)();
     void (*update)(f32, i32);
     void (*draw)(f32, i32);
-    void (*unload)();
-    int (*finish)();
+    GameScreen (*exit)();
 } ScreenInfo;
 
 ScreenInfo screen_table[] = {
-    { .init = title_init,    .update = title_update,    .draw = title_draw,    .unload = title_unload,    .finish = title_finish,    },
-    { .init = options_init,  .update = options_update,  .draw = options_draw,  .unload = options_unload,  .finish = options_finish,  },
-    { .init = game_init, .update = game_update, .draw = game_draw, .unload = game_unload, .finish = game_finish, },
+    [SCREEN_TITLE] = { .enter = title_enter, .update = title_update, .draw = title_draw, .exit = title_exit, },
+    [SCREEN_GAMEPLAY] = { .enter = game_enter,  .update = game_update,  .draw = game_draw,  .exit = game_exit,  },
 };
 
 RenderTexture2D render_texture;
@@ -54,8 +52,11 @@ int main(void)
 
     render_texture = LoadRenderTexture(RESOLUTION[0], RESOLUTION[1]);
 
+    title_load();
+    game_load();
+
     current_screen = SCREEN_TITLE;
-    screen_table[current_screen].init();
+    screen_table[current_screen].enter();
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop_arg(iterate, &game_state, 60, 1);
@@ -66,7 +67,8 @@ int main(void)
     }
 #endif
 
-    screen_table[current_screen].unload();
+    game_unload();
+    title_unload();
 
     CloseAudioDevice();
     CloseWindow();
@@ -90,9 +92,7 @@ static void update_transition(void)
 
     if (trans.alpha > 1.f) {
         trans.alpha = 1.f;
-        // Unload current screen
-        screen_table[trans.from_screen].unload();
-        screen_table[trans.to_screen].init();
+        screen_table[trans.to_screen].enter();
         current_screen = trans.to_screen;
         // Activate fade out effect to next loaded screen
         trans.fade_diff = -0.02f;
@@ -113,7 +113,7 @@ void iterate(void *arg)
     frameno++;
     if (!on_transition) {
         screen_table[current_screen].update(dt, frameno);
-        int res = screen_table[current_screen].finish();
+        int res = screen_table[current_screen].exit();
         if (res != SCREEN_UNKNOWN) {
             transition_to_screen(res);
         }

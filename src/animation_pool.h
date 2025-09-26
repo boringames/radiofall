@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/types.h"
+#include "util.h"
 #include "queue.h"
 
 #define ANIMATIONS_POOL_MAX 20

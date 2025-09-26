@@ -1,5 +1,6 @@
 #include "game.h"
 
+#include <raylib.h>
 #include <math.h>
 #include <string.h>
 #include <limits.h>
@@ -7,8 +8,6 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <stdlib.h>
-#include "core/types.h"
-#include "screens.h"
 #include "queue.h"
 #include "util.h"
 #include "pattern.h"
@@ -22,6 +21,11 @@ struct {
     GridColor colors[GRID_HEIGHT][GRID_WIDTH];
     bool visited[GRID_HEIGHT][GRID_WIDTH];
 } grid;
+
+typedef struct {
+    iVec2 pos; // origin of the pattern match and just "sweeped"
+    i32 pcount;
+} MatchInfo;
 
 PatternBuffer pattern_buffer;
 PatternBuffer matched_patterns;
@@ -65,33 +69,6 @@ i32 state_timer = 0;
 
 i32 volume_cooldown = 0;
 
-// TextInsert for some reason has a bug
-char *BetterTextInsert(const char *text, const char *insert, int position)
-{
-    int textLen = TextLength(text);
-    int insertLen = TextLength(insert);
-
-    char *result = (char *)malloc(textLen + insertLen + 1);
-
-    memcpy(result, text, position);
-    memcpy(result + position, insert, insertLen);
-    memcpy(result + position + insertLen, text + position, textLen - position);
-
-    result[textLen + insertLen] = '\0';     // Make sure text string is valid!
-
-    return result;
-}
-
-void DrawTextCentered(const char *text, Vector2 position, int padding, Color color, Font font, float fontSize, float spacing)
-{
-    Vector2 textSize = MeasureTextEx(font, text, fontSize, spacing);
-    Vector2 drawPos = {
-        position.x - (textSize.x + 2 * padding) / 2,
-        position.y - (textSize.y + 2 * padding) / 2
-    };
-    DrawTextEx(font, text, drawPos, fontSize, spacing, color);
-}
-
 // check if (base_pos, pattern) is valid inside the grid
 bool is_valid_pattern_pos(iVec2 base_pos, Pattern *p)
 {
@@ -114,24 +91,6 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
             find_pattern(neighbor, color, pattern);
         }
     }
-}
-
-Texture2D load_texture(const char *path)
-{
-    const char *appdir = GetApplicationDirectory();
-    char *realpath = BetterTextInsert(appdir, path, strlen(appdir));
-    Texture2D t = LoadTexture(realpath);
-    RL_FREE(realpath);
-    return t;
-}
-
-Sound load_sound(const char *path)
-{
-    const char *appdir = GetApplicationDirectory();
-    char *realpath = BetterTextInsert(appdir, path, strlen(appdir));
-    Sound s = LoadSound(realpath);
-    RL_FREE(realpath);
-    return s;
 }
 
 static bool grid_sweep() {
@@ -202,7 +161,8 @@ bool is_key_down(int key, i32 timer, i32 time)
     return IsKeyDown(key) && timer % time == 0;
 }
 
-void game_init() {
+void game_load()
+{
     field_ui = load_texture("resources/ui.png");
     field_ui_bg = load_texture("resources/ui_bg.png");
     preview1 = load_texture("resources/ui_preview1.png");
@@ -212,13 +172,25 @@ void game_init() {
 
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
+}
 
-    // i32 nmaps = 0;
-    // LoaderMap *maps = loader_load_maps("", &nmaps);
-    // i32 map_id = GetRandomValue(0, nmaps);
+void game_unload()
+{
+    UnloadTexture(field_ui);
+    UnloadTexture(field_ui_bg);
+    UnloadTexture(preview1);
+    UnloadTexture(preview2);
+    UnloadTexture(blocks);
+    UnloadTexture(volume_img);
+
+    UnloadSound(match_sfx);
+    UnloadSound(rotate_sfx);
+}
+
+void game_enter() {
     for (i32 y = 0; y < GRID_HEIGHT; y++)
         for (i32 x = 0; x < GRID_WIDTH; x++)
-            grid.colors[y][x] = COLOR_EMPTY; // maps[map_id][y][x];
+            grid.colors[y][x] = COLOR_EMPTY;
 
     pattbuf_init(&pattern_buffer);
     pattbuf_init(&matched_patterns);
@@ -337,10 +309,6 @@ void game_update(f32 dt, i32 frame) {
     default:
         break;
     }
-
-    if (IsKeyPressed(KEY_R)) {
-        game_init();
-    }
 }
 
 void draw_block(Vector2 pos, GridColor color, i32 frame)
@@ -370,14 +338,14 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
     }
 }
 
-const i32 frames[] = { 0, 1, 2, 3, 2, 1, };
+const i32 block_frames[] = { 0, 1, 2, 3, 2, 1, };
 
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
     i32 bg_frame = ((frame / 8) % 2) * 128;
     DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), grid_pos, WHITE);
 
-    i32 block_frameno = frames[(frame/64) % COUNT_OF(frames)];
+    i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
         Vector2 pos = Vector2Scale(as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i])), GRID_CELL_SIDE);
@@ -403,8 +371,8 @@ void game_draw(f32 dt, i32 frame) {
 
     DrawTexture(field_ui, 0, 0, WHITE);
     {
-        DrawTextCentered(TextFormat("%d", score), (Vector2){280, 34}, 2, WHITE, GetFontDefault(), 12, 1);
-        DrawTextCentered(TextFormat("%d", total_matched), (Vector2){280, 54}, 2, WHITE, GetFontDefault(), 12, 1);
+        draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
+        draw_text_centered(TextFormat("%d", total_matched), vec2(280, 54), 2, WHITE, GetFontDefault(), 12, 1);
 
         Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
         DrawTexturePro(
@@ -416,11 +384,7 @@ void game_draw(f32 dt, i32 frame) {
     }
 }
 
-void game_unload()
-{
-}
-
-int game_finish()
+GameScreen game_exit()
 {
     if (cur_state == STATE_END) {
         return SCREEN_TITLE;
