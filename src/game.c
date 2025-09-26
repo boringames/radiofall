@@ -356,7 +356,7 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
 {
     i32 bg_frame = ((frame / 8) % 2) * box_size.x;
     DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
-    if (pattbuf_size(&pattern_buffer) < n) {
+    if (pattbuf_size(&pattern_buffer) <= n) {
         return;
     }
     Pattern *p = pattbuf_peek(&pattern_buffer, n);
