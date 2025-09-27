@@ -35,6 +35,7 @@ Texture2D load_texture(const char *path)
     const char *appdir = GetApplicationDirectory();
     char *realpath = text_insert(appdir, path, strlen(appdir));
     Texture2D t = LoadTexture(realpath);
+    SetTextureFilter(t, TEXTURE_FILTER_POINT);
     RL_FREE(realpath);
     return t;
 }
