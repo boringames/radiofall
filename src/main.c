@@ -4,6 +4,7 @@
 #include <raymath.h>
 #include "screens.h"
 #include "core/types.h"
+#include "data.h"
 #include "game.h"
 
 #if defined(PLATFORM_WEB)
@@ -51,6 +52,10 @@ int main(void)
 {
     InitWindow(RESOLUTION[0] * SCALE, RESOLUTION[1] * SCALE, "raylib game template");
     InitAudioDevice();
+
+    if (!data_init()) {
+        return 1;
+    }
 
     render_texture = LoadRenderTexture(RESOLUTION[0], RESOLUTION[1]);
 
