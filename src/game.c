@@ -38,7 +38,7 @@ i32 score = 0;
 i32 total_matched = 0;
 
 struct {
-    iVec2 pos;
+    Vector2 pos;
     Pattern patt;
 } cur_piece;
 
@@ -65,17 +65,48 @@ bool block_down = false;
 // timer for each state; resets to zero on a state change
 i32 state_timer = 0;
 
+// volume stuff
 #define COOLDOWN_MAX 20
 
 i32 volume_cooldown = 0;
 
-// check if (base_pos, pattern) is valid inside the grid
-bool is_valid_pattern_pos(iVec2 base_pos, Pattern *p)
+// key input buffers
+// we check input for these keys each frame, but their action
+// is delayed by a few frames so that they're slowed down
+#define INPUT_LEFT 0
+#define INPUT_RIGHT 1
+#define INPUT_DOWN 2
+
+bool input_buffers[3];
+
+int raylib_key_to_input_key(KeyboardKey key)
 {
-    for (i32 i = 0; i < p->count; i++) {
-        iVec2 pos = ivec2_plus(base_pos, p->coords[i]);
-        if (!IN_GRID(pos) || grid.colors[pos.y][pos.x] != COLOR_EMPTY) {
-            return false;
+    return key == KEY_LEFT  ? INPUT_LEFT
+         : key == KEY_RIGHT ? INPUT_RIGHT
+         : key == KEY_DOWN  ? INPUT_DOWN
+         : 0;
+}
+
+iVec2 convert_base_pos(Vector2 p)
+{
+    return IVEC2(p.x / 16.f, p.y / 16.f);
+}
+
+// check if (base_pos, pattern) is valid inside the grid
+bool is_valid_pattern_pos(Vector2 base_pos, Pattern *p)
+{
+    // check out any possible grid position the pattern may be in
+    // this mostly means checking at base_pos.y and base_pos.y + 15
+    iVec2 bps[] = {
+        convert_base_pos(base_pos),
+        convert_base_pos(Vector2Add(base_pos, vec2(0, 15))),
+    };
+    for (size_t j = 0; j < COUNT_OF(bps); j++) {
+        for (i32 i = 0; i < p->count; i++) {
+            iVec2 pos = ivec2_plus(bps[j], p->coords[i]);
+            if (!IN_GRID(pos) || grid.colors[pos.y][pos.x] != COLOR_EMPTY) {
+                return false;
+            }
         }
     }
     return true;
@@ -134,7 +165,7 @@ static void enter_falling_state()
     if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         pattern_generate(&cur_piece.patt);
     }
-    cur_piece.pos = IVEC2(3, 0);
+    cur_piece.pos = vec2(3 * 16.f, 0);
 
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
         cur_state = STATE_END;
@@ -148,17 +179,12 @@ static void exit_falling_state()
 {
     // copy current falling piece to grid
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
-        iVec2 pos = ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i]);
+        iVec2 pos = ivec2_plus(convert_base_pos(cur_piece.pos), cur_piece.patt.coords[i]);
         grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
     }
-    cur_piece.pos = IVEC2(-100, -100);
+    cur_piece.pos = vec2(-100, -100);
     cur_state = STATE_SETTLING;
     state_timer = 0;
-}
-
-bool is_key_down(int key, i32 timer, i32 time)
-{
-    return IsKeyDown(key) && timer % time == 0;
 }
 
 void game_load()
@@ -210,6 +236,17 @@ void animate_score(void *context, f32 dt, i32 frameno) {
             12, WHITE);
 }
 
+bool is_key_down(KeyboardKey key, i32 timer, i32 time)
+{
+    int k = raylib_key_to_input_key(key);
+    if (timer % time == 0) {
+        bool down = input_buffers[k];
+        input_buffers[k] = false;
+        return down;
+    }
+    return false;
+}
+
 void game_update(f32 dt, i32 frame) {
     state_timer++;
 
@@ -233,16 +270,25 @@ void game_update(f32 dt, i32 frame) {
             }
         }
 
-        i32 xdir = -is_key_down(KEY_LEFT, state_timer, 8) + is_key_down(KEY_RIGHT, state_timer, 8);
-        if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, 0)), &cur_piece.patt)) {
+        if (IsKeyDown(KEY_LEFT)) {
+            input_buffers[INPUT_LEFT] = true;
+        }
+        if (IsKeyDown(KEY_RIGHT)) {
+            input_buffers[INPUT_RIGHT] = true;
+        }
+        if (IsKeyDown(KEY_DOWN)) {
+            input_buffers[INPUT_DOWN] = true;
+        }
+
+        i32 xdir = (-is_key_down(KEY_LEFT, state_timer, 4) + is_key_down(KEY_RIGHT, state_timer, 4)) * 16;
+        if (!is_valid_pattern_pos(Vector2Add(cur_piece.pos, vec2(xdir, 0)), &cur_piece.patt)) {
             xdir = 0;
         }
-        i32 ydir = (!block_down && is_key_down(KEY_DOWN, state_timer, 3)) || state_timer % 64 == 0;
-        if (!is_valid_pattern_pos(ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir)), &cur_piece.patt)) {
+        i32 ydir = (state_timer % 16 == 0) * 4 + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
+        cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
+        if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
             cur_piece.pos.x += xdir;
             exit_falling_state();
-        } else {
-            cur_piece.pos = ivec2_plus(cur_piece.pos, IVEC2(xdir, ydir));
         }
 
         if (frame % 64 == 0) {
@@ -251,6 +297,7 @@ void game_update(f32 dt, i32 frame) {
                 cur_state = STATE_END;
             }
         }
+
         break;
     case STATE_SETTLING:
         block_down = true;
@@ -348,7 +395,7 @@ void game_draw(f32 dt, i32 frame) {
     i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
-        Vector2 pos = Vector2Scale(as_vec2(ivec2_plus(cur_piece.pos, cur_piece.patt.coords[i])), GRID_CELL_SIDE);
+        Vector2 pos = Vector2Add(cur_piece.pos, Vector2Scale(as_vec2(cur_piece.patt.coords[i]), GRID_CELL_SIDE));
         draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
     }
 

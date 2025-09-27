@@ -27,7 +27,7 @@ typedef struct iVec2 {
 
 static inline iVec2 ivec2_plus(iVec2 a, iVec2 b) { return (iVec2) { .x = a.x + b.x, .y = a.y + b.y }; }
 static inline bool ivec2_eq(iVec2 a, iVec2 b) { return a.x == b.x && a.y == b.y; }
-static inline Vector2 as_vec2(iVec2 v)  { return (Vector2) { .x = (float) v.x, .y = (float) v.y }; }
+static inline Vector2 as_vec2(iVec2 v) { return (Vector2) { .x = (float) v.x, .y = (float) v.y }; }
 static inline iVec2 ivec2_scale(iVec2 v, i32 x) { return (iVec2) { .x = v.x * x, .y = v.y * x }; }
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
