@@ -12,6 +12,8 @@
 #include "util.h"
 #include "pattern.h"
 #include "animation_pool.h"
+#include "vector.h"
+#include "llist.h"
 
 #define PATTERN_MATCH_MIN 3
 
@@ -42,10 +44,20 @@ struct {
     Pattern patt;
 } cur_piece;
 
+typedef struct {
+    GridColor color;
+    Vector2 pos;
+    float vel;
+} FallingBlock;
+
+LLIST_DECLARE(FallingList, FallingBlock, falling_list)
+LLIST_DEFINE(FallingList, FallingBlock, falling_list)
+
+FallingList *falling_blocks;
+
 enum {
     STATE_FALLING,
     STATE_SETTLING,
-    STATE_SHOW_MATCHES,
     STATE_END,
 } cur_state;
 
@@ -175,16 +187,37 @@ static void enter_falling_state()
     state_timer = 0;
 }
 
-static void exit_falling_state()
+static FallingList *falling_list_find_before(FallingList *p, bool (*less)(FallingList *, void *), void *userdata)
 {
-    // copy current falling piece to grid
-    for (i32 i = 0; i < cur_piece.patt.count; i++) {
-        iVec2 pos = ivec2_plus(convert_base_pos(cur_piece.pos), cur_piece.patt.coords[i]);
-        grid.colors[pos.y][pos.x] = cur_piece.patt.color[i];
+    FallingList *prev = NULL;
+    while (p) {
+        if (less(p, userdata)) {
+            break;
+        }
+        prev = p;
+        p = p->next;
     }
-    cur_piece.pos = vec2(-100, -100);
-    cur_state = STATE_SETTLING;
-    state_timer = 0;
+    return prev;
+}
+
+static bool is_pos_y_less(FallingList *p, void *pos)
+{
+    return p->elem.pos.y < ((Vector2 *)pos)->y;
+}
+
+void add_falling_block(Vector2 pos, GridColor color)
+{
+    FallingList *prev = falling_list_find_before(falling_blocks, is_pos_y_less, &pos);
+    FallingBlock block = {
+        .color = color,
+        .pos = pos,
+        .vel = 16.0f,
+    };
+    if (prev) {
+        falling_list_add_next(prev, block);
+    } else {
+        falling_list_add(&falling_blocks, block);
+    }
 }
 
 void game_load()
@@ -247,6 +280,16 @@ bool is_key_down(KeyboardKey key, i32 timer, i32 time)
     return false;
 }
 
+static bool is_hovering(i32 x, i32 base_y)
+{
+    for (i32 y = base_y+1; y < GRID_HEIGHT; y++) {
+        if (grid.colors[y][x] == COLOR_EMPTY) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void game_update(f32 dt, i32 frame) {
     state_timer++;
 
@@ -287,8 +330,14 @@ void game_update(f32 dt, i32 frame) {
         i32 ydir = (state_timer % 16 == 0) * 4 + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
         cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
         if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
-            cur_piece.pos.x += xdir;
-            exit_falling_state();
+            cur_piece.pos.y = floorf(cur_piece.pos.y / 16.f) * 16.f;
+            for (i32 i = 0; i < cur_piece.patt.count; i++) {
+                 Vector2 pos = Vector2Add(cur_piece.pos, Vector2Scale(as_vec2(cur_piece.patt.coords[i]), 16));
+                 add_falling_block(pos, cur_piece.patt.color[i]);
+            }
+            cur_piece.pos = vec2(-100, -100);
+            cur_state = STATE_SETTLING;
+            state_timer = 0;
         }
 
         if (frame % 64 == 0) {
@@ -302,57 +351,65 @@ void game_update(f32 dt, i32 frame) {
     case STATE_SETTLING:
         block_down = true;
 
-        if (state_timer % 6 == 0) {
-            // push down by 1 all blocks in the grid
-            // that don't have anything below them
-            bool all_settled = true;
-            for (i32 y = GRID_HEIGHT - 2; y >= 0; y--) {
-                for (i32 x = 0; x < GRID_WIDTH; x++) {
-                    if (grid.colors[y][x] != COLOR_EMPTY && grid.colors[y+1][x] == COLOR_EMPTY) {
-                        grid.colors[y+1][x] = grid.colors[y][x];
-                        grid.colors[y][x] = COLOR_EMPTY;
-                        all_settled = false;
+        bool all_settled = true;
+        for (FallingList *p = falling_blocks, *prev = NULL; p; ) {
+            p->elem.vel += 1000.0f * dt;
+            p->elem.pos.y += p->elem.vel * dt;
+            iVec2 pos_up = IVEC2(p->elem.pos.x / 16.f, p->elem.pos.y / 16.f);
+            iVec2 pos_dn = IVEC2(p->elem.pos.x / 16.f, (p->elem.pos.y + 15.f) / 16.f);
+            if (pos_dn.y == GRID_HEIGHT || grid.colors[pos_dn.y][pos_dn.x] != COLOR_EMPTY) {
+                // add falling block to grid and remove it from the list
+                grid.colors[pos_up.y][pos_up.x] = p->elem.color;
+                if (!prev) {
+                    falling_blocks = p->next;
+                } else {
+                    prev->next = p->next;
+                }
+                FallingList *to_remove = p;
+                p = p->next;
+                free(to_remove);
+            } else {
+                all_settled = false;
+                prev = p;
+                p = p->next;
+            }
+        }
+
+        if (all_settled) {
+            if (grid_sweep()) {
+                while (pattbuf_size(&matched_patterns) != 0) {
+                    Pattern out;
+                    pattbuf_dequeue(&matched_patterns, &out);
+                    PlaySound(match_sfx);
+                    matched_count++;
+                    local_score += out.count;
+                    volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
+                    MatchInfo m;
+                    m.pcount = out.count;
+                    m.pos = pattern_min(&out);
+                    pattern_normalize(&out);
+                    iVec2 pattern_orig = pattern_origin(&out);
+                    m.pos.x += pattern_orig.x;
+                    m.pos.y += pattern_orig.y;
+                    apool_add(animate_score, 128, (void *)&m, sizeof(MatchInfo));
+                }
+                score += local_score * matched_count;
+                total_matched += matched_count;
+
+                for (i32 y = 0; y < GRID_HEIGHT; y++) {
+                    for (i32 x = 0; x < GRID_WIDTH; x++) {
+                        if (grid.colors[y][x] != COLOR_EMPTY && is_hovering(x, y)) {
+                            add_falling_block(vec2(x * 16, y * 16), grid.colors[y][x]);
+                            grid.colors[y][x] = COLOR_EMPTY;
+                        }
                     }
                 }
-            }
-
-            if (all_settled) {
-                if (grid_sweep()) {
-                    cur_state = STATE_SHOW_MATCHES;
-                    state_timer = 0;
-                } else {
-                    enter_falling_state();
-                }
+            } else {
+                enter_falling_state();
             }
         }
         break;
 
-    case STATE_SHOW_MATCHES:
-        while (pattbuf_size(&matched_patterns) != 0) {
-            Pattern out;
-            if (pattbuf_dequeue(&matched_patterns, &out)) {
-                PlaySound(match_sfx);
-
-                matched_count++;
-                local_score += out.count;
-                volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
-                MatchInfo m;
-                m.pcount = out.count;
-                m.pos = pattern_min(&out);
-                pattern_normalize(&out);
-                iVec2 pattern_orig = pattern_origin(&out);
-                m.pos.x += pattern_orig.x;
-                m.pos.y += pattern_orig.y;
-                apool_add(animate_score, 128, (void *)&m, sizeof(MatchInfo));
-            }
-        }
-        score += local_score * matched_count;
-        total_matched += matched_count;
-        if (state_timer == 32) {
-            cur_state = STATE_SETTLING;
-            state_timer = 0;
-        }
-        break;
     default:
         break;
     }
@@ -389,9 +446,16 @@ const i32 block_frames[] = { 0, 1, 2, 3, 2, 1, };
 
 void game_draw(f32 dt, i32 frame) {
     Vector2 grid_pos = vec2(96, 16);
+
+    // background
     i32 bg_frame = ((frame / 8) % 2) * 128;
     DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), grid_pos, WHITE);
 
+    // previews
+    draw_preview(0, vec2(7,  28), vec2(68, 47), preview1, frame);
+    draw_preview(1, vec2(8, 165), vec2(64, 65), preview2, frame);
+
+    // current piece and grid
     i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];
 
     for (i32 i = 0; i < cur_piece.patt.count; i++) {
@@ -399,36 +463,36 @@ void game_draw(f32 dt, i32 frame) {
         draw_block(Vector2Add(pos, grid_pos), cur_piece.patt.color[i], block_frameno);
     }
 
-    draw_preview(0, vec2(7,  28), vec2(68, 47), preview1, frame);
-    draw_preview(1, vec2(8, 165), vec2(64, 65), preview2, frame);
-
     for (i32 y = 0; y < GRID_HEIGHT; y++) {
         for (i32 x = 0; x < GRID_WIDTH; x++) {
             if (grid.colors[y][x] != COLOR_EMPTY) {
-                draw_block(
-                        Vector2Add(Vector2Scale(vec2(x, y), GRID_CELL_SIDE), GRID_POS),
-                        grid.colors[y][x],
-                        block_frameno
-                        );
+                Vector2 pos = Vector2Add(Vector2Scale(vec2(x, y), GRID_CELL_SIDE), GRID_POS);
+                draw_block(pos, grid.colors[y][x], block_frameno);
             }
         }
     }
 
+    for (FallingList *p = falling_blocks; p; p = p->next) {
+        draw_block(Vector2Add(grid_pos, p->elem.pos), p->elem.color, block_frameno);
+    }
+
     apool_update(dt);
 
+    // foreground
     DrawTexture(field_ui, 0, 0, WHITE);
-    {
-        draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
-        draw_text_centered(TextFormat("%d", total_matched), vec2(280, 54), 2, WHITE, GetFontDefault(), 12, 1);
 
-        Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
-        DrawTexturePro(
-            volume_img,
-            rec(vec2(0, 0), volume_size),
-            rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
-            vec2(0, 0), 0, WHITE
-        );
-    }
+    // score
+    draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
+    draw_text_centered(TextFormat("%d", total_matched), vec2(280, 54), 2, WHITE, GetFontDefault(), 12, 1);
+
+    // volume
+    Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
+    DrawTexturePro(
+        volume_img,
+        rec(vec2(0, 0), volume_size),
+        rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
+        vec2(0, 0), 0, WHITE
+    );
 }
 
 GameScreen game_exit()
