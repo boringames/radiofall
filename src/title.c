@@ -40,7 +40,7 @@ void title_load()
     mute_button = load_texture("resources/mute_button.png");
     exit_button = load_texture("resources/exit_button.png");
 
-    menu_select_sfx = load_sound("resources/match.wav");
+    menu_select_sfx = load_sound("resources/stereo_button.wav");
     menu_scroll_sfx = load_sound("resources/rotate.wav");
 }
 
@@ -58,8 +58,10 @@ f32 _press_cd = 0.0f;
 void title_update(f32 dt, i32 frame)
 {
     if (IsKeyDown(KEY_ENTER) && cur_menu_item == MENU_PLAY) {
+        SetSoundVolume(menu_select_sfx, 0.2f);
+        PlaySound(menu_select_sfx);
         start = true;
-    }
+    };
 
     if (_press_cd > 0.1f) {
         _press_cd = 0;
