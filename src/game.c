@@ -30,7 +30,6 @@ typedef struct {
 } MatchInfo;
 
 PatternBuffer pattern_buffer;
-PatternBuffer matched_patterns;
 
 static const Vector2 GRID_POS = {96, 16};
 i32 block_frameno = 0;
@@ -136,11 +135,12 @@ static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern) {
     }
 }
 
-static bool grid_sweep() {
+static PatternVector grid_sweep() {
     for (i32 i = 0; i < GRID_HEIGHT; i++)
         for (i32 j = 0; j < GRID_WIDTH; j++)
             grid.visited[i][j] = false;
 
+    PatternVector matched_patterns = VECTOR_INIT();
     for (i32 i = 0; i < GRID_HEIGHT; i++) {
         for (i32 j = 0; j < GRID_WIDTH; j++) {
             if (grid.colors[i][j] == COLOR_EMPTY || grid.visited[i][j]) {
@@ -163,13 +163,13 @@ static bool grid_sweep() {
                 for (i32 i = 0; i < p->count; i++) {
                     p->color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
                 }
-                pattbuf_enqueue(&matched_patterns, *p);
+                pattvec_add(&matched_patterns, *p);
                 pattern_normalize(p);
             }
         }
     }
 
-    return pattbuf_size(&matched_patterns);
+    return matched_patterns;
 }
 
 static void enter_falling_state()
@@ -252,7 +252,7 @@ void game_enter() {
             grid.colors[y][x] = COLOR_EMPTY;
 
     pattbuf_init(&pattern_buffer);
-    pattbuf_init(&matched_patterns);
+    // pattbuf_init(&matched_patterns);
 
     score = 0;
     volume_cooldown = 0;
@@ -376,10 +376,10 @@ void game_update(f32 dt, i32 frame) {
         }
 
         if (all_settled) {
-            if (grid_sweep()) {
-                while (pattbuf_size(&matched_patterns) != 0) {
-                    Pattern out;
-                    pattbuf_dequeue(&matched_patterns, &out);
+            PatternVector matched_patterns = grid_sweep();
+            if (matched_patterns.size > 0) {
+                for (size_t i = 0; i < matched_patterns.size; i++) {
+                    Pattern out = matched_patterns.data[i];
                     PlaySound(match_sfx);
                     matched_count++;
                     local_score += out.count;
@@ -407,6 +407,7 @@ void game_update(f32 dt, i32 frame) {
             } else {
                 enter_falling_state();
             }
+            pattvec_free(&matched_patterns);
         }
         break;
 

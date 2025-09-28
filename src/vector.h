@@ -1,6 +1,8 @@
 #ifndef VECTOR_H_INCLUDED
 #define VECTOR_H_INCLUDED
 
+#include <stdlib.h>
+
 static inline size_t vector_grow_cap(size_t old_cap)
 {
     return old_cap < 8 ? 8 : old_cap * 2;
@@ -34,6 +36,7 @@ void header##_init(T *arr);                                      \
 void header##_init_allocator(T *arr, VectorAllocator allocator); \
 void header##_free(T *arr);                                      \
 void header##_add(T *arr, TVal value);                           \
+TVal header##_remove(T *arr);                                    \
 
 // size_t header##_search(T *arr, TVal elem, VectorComparator comp);
 
@@ -65,9 +68,14 @@ void header##_add(T *arr, TVal value)                            \
     if (arr->cap < arr->size + 1) {                              \
         size_t old = arr->cap;                                   \
         arr->cap = vector_grow_cap(old);                         \
-        arr->data = arr->allocator(arr->data, old, arr->cap);    \
+        arr->data = arr->allocator(arr->data, old, arr->cap * sizeof(TVal));    \
     }                                                            \
     arr->data[arr->size++] = value;                              \
+}                                                                \
+                                                                 \
+TVal header##_remove(T *arr)                                     \
+{                                                                \
+    return arr->data[--arr->size];                               \
 }                                                                \
 
 // size_t header##_search(T *arr, TVal elem, VectorComparator comp)

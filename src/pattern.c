@@ -8,6 +8,7 @@
 #include "util.h"
 
 QUEUE_DEFINE(Pattern, PatternBuffer, pattbuf, 32)
+VECTOR_DEFINE(PatternVector, Pattern, pattvec)
 
 bool pattern_has_coord(Pattern *p, iVec2 v)
 {

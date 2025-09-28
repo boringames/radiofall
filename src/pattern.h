@@ -2,6 +2,7 @@
 
 #include "game.h"
 #include "queue.h"
+#include "vector.h"
 
 typedef struct {
     i32 count;
@@ -10,6 +11,7 @@ typedef struct {
 } Pattern;
 
 QUEUE_DECLARE(Pattern, PatternBuffer, pattbuf, 32)
+VECTOR_DECLARE(PatternVector, Pattern, pattvec)
 
 bool pattern_has_coord(Pattern *p, iVec2 v);
 iVec2 pattern_min(Pattern *p);
