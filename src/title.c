@@ -86,33 +86,27 @@ void title_draw(f32 dt, i32 frameno)
         src.y = frameno / 2;
         DrawTexturePro(title_ui_bg, src, dst, VEC2ZERO, 0, WHITE);
     }
+    apool_update(dt);
     {
-        f32 floating_off = (sin(GetTime() * 10)) + 1;
-        if (start) {
-            floating_off *= 3;
+        f32 floating_off = start ? (sin(GetTime() * 10) * 2) + 4 : (sin(GetTime() * 10)) + 1;
+
+        struct
+        {
+            Texture texture;
+            i32 menu_item
+        } buttons[] = {
+            {play_button, MENU_PLAY},
+            {next_button, MENU_NEXT},
+            {mute_button, MENU_MUTE},
+            {exit_button, MENU_EXIT}};
+
+        for (int i = 0; i < 4; i++)
+        {
+            f32 x = 64 + buttons[i].texture.width * i;
+            f32 y = 104 + (cur_menu_item == buttons[i].menu_item ? floating_off : 0);
+            Color color = (cur_menu_item == buttons[i].menu_item ? COLOR_SELECTED : COLOR_UNSELECTED);
+            DrawTexture(buttons[i].texture, x, y, color);
         }
-
-        apool_update(dt);
-
-        DrawTexture(play_button,
-            64 + play_button.width * 0,
-            104 + (cur_menu_item == MENU_PLAY ? floating_off : 0),
-            cur_menu_item == MENU_PLAY ? COLOR_SELECTED : COLOR_UNSELECTED);
-
-        DrawTexture(next_button,
-            64 + play_button.width * 1,
-            104 + (cur_menu_item == MENU_NEXT ? floating_off : 0),
-            cur_menu_item == MENU_NEXT ? COLOR_SELECTED : COLOR_UNSELECTED);
-
-        DrawTexture(mute_button,
-            64 + play_button.width * 2,
-            104 + (cur_menu_item == MENU_MUTE ? floating_off : 0),
-            cur_menu_item == MENU_MUTE ? COLOR_SELECTED : COLOR_UNSELECTED);
-
-        DrawTexture(exit_button,
-            64 + play_button.width * 3,
-            104 + (cur_menu_item == MENU_EXIT ? floating_off : 0),
-            cur_menu_item == MENU_EXIT ? COLOR_SELECTED : COLOR_UNSELECTED);
     }
     {
         Rectangle src = {0.0f, 0.0f, tapes.width * ((frameno / 8) % 2 == 0 ? -1 : 1), tapes.height};
