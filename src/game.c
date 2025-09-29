@@ -187,19 +187,6 @@ static void enter_falling_state()
     state_timer = 0;
 }
 
-static FallingList *falling_list_find_before(FallingList *p, bool (*less)(FallingList *, void *), void *userdata)
-{
-    FallingList *prev = NULL;
-    while (p) {
-        if (less(p, userdata)) {
-            break;
-        }
-        prev = p;
-        p = p->next;
-    }
-    return prev;
-}
-
 static bool is_pos_y_less(FallingList *p, void *pos)
 {
     return p->elem.pos.y < ((Vector2 *)pos)->y;
@@ -207,17 +194,13 @@ static bool is_pos_y_less(FallingList *p, void *pos)
 
 void add_falling_block(Vector2 pos, GridColor color)
 {
-    FallingList *prev = falling_list_find_before(falling_blocks, is_pos_y_less, &pos);
+    FallingList **p = falling_list_findf(&falling_blocks, is_pos_y_less, &pos);
     FallingBlock block = {
         .color = color,
         .pos = pos,
         .vel = 16.0f,
     };
-    if (prev) {
-        falling_list_add_next(prev, block);
-    } else {
-        falling_list_add(&falling_blocks, block);
-    }
+    falling_list_add(p, block);
 }
 
 void game_load()
@@ -352,26 +335,19 @@ void game_update(f32 dt, i32 frame) {
         block_down = true;
 
         bool all_settled = true;
-        for (FallingList *p = falling_blocks, *prev = NULL; p; ) {
-            p->elem.vel += 1000.0f * dt;
-            p->elem.pos.y += p->elem.vel * dt;
-            iVec2 pos_up = IVEC2(p->elem.pos.x / 16.f, p->elem.pos.y / 16.f);
-            iVec2 pos_dn = IVEC2(p->elem.pos.x / 16.f, (p->elem.pos.y + 15.f) / 16.f);
+        for (FallingList **p = &falling_blocks; *p; ) {
+            FallingBlock *b = &(*p)->elem;
+            b->vel += 1000.0f * dt;
+            b->pos.y += b->vel * dt;
+            iVec2 pos_up = IVEC2(b->pos.x / 16.f, b->pos.y / 16.f);
+            iVec2 pos_dn = IVEC2(b->pos.x / 16.f, (b->pos.y + 15.f) / 16.f);
             if (pos_dn.y == GRID_HEIGHT || grid.colors[pos_dn.y][pos_dn.x] != COLOR_EMPTY) {
                 // add falling block to grid and remove it from the list
-                grid.colors[pos_up.y][pos_up.x] = p->elem.color;
-                if (!prev) {
-                    falling_blocks = p->next;
-                } else {
-                    prev->next = p->next;
-                }
-                FallingList *to_remove = p;
-                p = p->next;
-                free(to_remove);
+                grid.colors[pos_up.y][pos_up.x] = b->color;
+                falling_list_remove(p);
             } else {
                 all_settled = false;
-                prev = p;
-                p = p->next;
+                p = &(*p)->next;
             }
         }
 

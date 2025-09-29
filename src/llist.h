@@ -7,8 +7,9 @@ typedef struct T {                   \
 } T;                                 \
                                      \
 void name##_add(T **list, TVal elem);\
-void name##_remove(T *list);         \
+void name##_remove(T **list);        \
 void name##_free(T *list);           \
+T **name##_findf(T **list, bool (*pred)(T *, void *), void *userdata);\
 
 #define LLIST_DEFINE(T, TVal, name)       \
 void name##_add(T **list, TVal elem)     \
@@ -19,17 +20,11 @@ void name##_add(T **list, TVal elem)     \
     *list = x;                           \
 }                                        \
                                          \
-void name##_add_next(T *p, TVal elem)    \
+void name##_remove(T **list)             \
 {                                        \
-    T *x = malloc(sizeof(T));            \
-    x->elem = elem;                      \
-    x->next = p->next;                   \
-    p->next = x;                         \
-}                                        \
-                                         \
-void name##_remove(T *list)              \
-{                                        \
-    free(list);                          \
+    T *to_remove = *list;                \
+    *list = (*list)->next;               \
+    free(to_remove);                     \
 }                                        \
                                          \
 void name##_free(T *list)                \
@@ -40,4 +35,13 @@ void name##_free(T *list)                \
         free(tmp);                       \
     }                                    \
 }                                        \
+                                                                     \
+T **name##_findf(T **list, bool (*pred)(T *, void *), void *userdata)\
+{                                                                    \
+    FallingList **p = list;                                          \
+    while (*p && !pred(*p, userdata)) {                              \
+        p = &(*p)->next;                                             \
+    }                                                                \
+    return p;                                                        \
+}                                                                    \
 
