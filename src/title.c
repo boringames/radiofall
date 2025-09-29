@@ -78,11 +78,14 @@ void title_update(f32 dt, i32 frame)
     _press_cd += dt;
 }
 
-float tapes_rot = 1.0;
-float yoff = 0.0f;
 void title_draw(f32 dt, i32 frameno)
 {
-    DrawTexture(title_ui_bg, 0, 0, WHITE);
+    {
+        Rectangle src = { .x = 0, .y = 0, .height = title_ui_bg.height, .width = title_ui_bg.width };
+        Rectangle dst = { .x = 0, .y = 0, .height = 240, .width = 320};
+        src.y = frameno / 2;
+        DrawTexturePro(title_ui_bg, src, dst, VEC2ZERO, 0, WHITE);
+    }
     {
         f32 floating_off = (sin(GetTime() * 10)) + 1;
         if (start) {
@@ -111,13 +114,11 @@ void title_draw(f32 dt, i32 frameno)
             104 + (cur_menu_item == MENU_EXIT ? floating_off : 0),
             cur_menu_item == MENU_EXIT ? COLOR_SELECTED : COLOR_UNSELECTED);
     }
-    Rectangle src = {0.0f, 0.0f, tapes.width * tapes_rot, tapes.height};
-    Rectangle dst = {64.0f, 144.0f, tapes.width, tapes.height};
-    if (frameno % 8 == 0) {
-        tapes_rot *= -1;
+    {
+        Rectangle src = {0.0f, 0.0f, tapes.width * ((frameno / 8) % 2 == 0 ? -1 : 1), tapes.height};
+        Rectangle dst = {64.0f, 144.0f, tapes.width, tapes.height};
+        DrawTexturePro(tapes, src, dst, (Vector2){0, 0}, 0, WHITE);
     }
-
-    DrawTexturePro(tapes, src, dst, (Vector2){0, 0}, 0, WHITE);
 
     DrawTexture(title_ui, 0, 0, WHITE);
     DrawRectangle(40 + ((sin(GetTime()) + 1.0)/2.0) * 240, 130, 2, 6, LIGHTGRAY);
