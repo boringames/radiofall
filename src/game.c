@@ -183,7 +183,8 @@ static void enter_falling_state()
     if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         pattern_generate(&cur_piece.patt);
     }
-    cur_piece.pos = vec2(3 * 16.f, 0);
+    i32 x = pattern_max(&cur_piece.patt).x + 1;
+    cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
     rotation.in = false;
 
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
