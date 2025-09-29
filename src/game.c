@@ -57,6 +57,7 @@ FallingList *falling_blocks;
 enum {
     STATE_FALLING,
     STATE_SETTLING,
+    STATE_GAMEOVER,
     STATE_END,
 } cur_state;
 
@@ -188,7 +189,7 @@ static void enter_falling_state()
     rotation.in = false;
 
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
-        cur_state = STATE_END;
+        cur_state = STATE_GAMEOVER;
     } else {
         cur_state = STATE_FALLING;
     }
@@ -335,7 +336,7 @@ void falling_state_update(i32 frame)
         volume_cooldown = CLAMP(volume_cooldown + 1, 0, COOLDOWN_MAX);
         if (volume_cooldown == COOLDOWN_MAX) {
             rotation.in = false;
-            cur_state = STATE_END;
+            cur_state = STATE_GAMEOVER;
         }
     }
 }
@@ -403,6 +404,12 @@ void game_update(f32 dt, i32 frame) {
                 enter_falling_state();
             }
             pattvec_free(&matched_patterns);
+        }
+        break;
+
+    case STATE_GAMEOVER:
+        if (IsKeyDown(KEY_ENTER)) {
+            game_enter();
         }
         break;
 
@@ -499,6 +506,11 @@ void game_draw(f32 dt, i32 frame) {
         rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
         vec2(0, 0), 0, WHITE
     );
+
+    if (cur_state == STATE_GAMEOVER) {
+        draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
+        draw_text_centered("[ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
+    }
 }
 
 GameScreen game_exit()
