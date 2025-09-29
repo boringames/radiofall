@@ -17,6 +17,7 @@ typedef int32_t  i32;
 typedef int64_t  i64;
 
 #define VEC2(x, y) ((Vector2) { .x = x, .y = y })
+#define VEC2ZERO ((Vector2) { .x = 0.f, .y = 0.f })
 static inline Vector2 vec2(float x, float y) { return (Vector2) { .x = x, .y = y }; }
 
 typedef struct iVec2 {
