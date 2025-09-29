@@ -5,16 +5,6 @@
 
 APool pool = {0};
 
-static void MemCopy(void *dst, void *src, u64 size)
-{
-    u8 *d = (u8*)(dst); const u8 *s = (const u8*)(src);
-    u64 i = 0;
-    for (; i <= size - sizeof(uint64_t); i += sizeof(uint64_t))
-        ((uint64_t*)d)[i/sizeof(uint64_t)] = ((const u64*)s)[i/sizeof(u64)];
-    for (; i < size; i++)
-        d[i] = s[i];
-}
-
 i32 apool_add(AnimationFunc anim, i32 for_frames, void *data, u64 size)
 {
     if (pool.count >= ANIMATIONS_POOL_MAX) return -1;
@@ -22,7 +12,7 @@ i32 apool_add(AnimationFunc anim, i32 for_frames, void *data, u64 size)
     pool.animations[pool.count].for_frames = for_frames;
     pool.animations[pool.count].cur_frame = 0;
     void *copybuf = NULL; if ((copybuf = MemAlloc(size))) {
-        MemCopy(copybuf, data, size);
+        mem_copy(copybuf, data, size);
         pool.animations[pool.count].data = copybuf;
     } else {
         GAME_LOG_ERR("alloc of bytes %zu failed, got NULL MemAlloc ptr", size);

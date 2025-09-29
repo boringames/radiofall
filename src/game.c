@@ -14,6 +14,7 @@
 #include "animation_pool.h"
 #include "vector.h"
 #include "llist.h"
+#include "hiscore.h"
 
 #define PATTERN_MATCH_MIN 3
 
@@ -223,6 +224,9 @@ void game_load()
 
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
+
+    // hiscore state
+    hiscore_load();
 }
 
 void game_unload()
@@ -409,7 +413,11 @@ void game_update(f32 dt, i32 frame) {
 
     case STATE_GAMEOVER:
         if (IsKeyDown(KEY_ENTER)) {
+            hiscore_try_set(score);
             game_enter();
+        } else if (IsKeyDown(KEY_ESCAPE)) {
+            hiscore_try_set(score);
+            cur_state = STATE_END;
         }
         break;
 
@@ -497,6 +505,7 @@ void game_draw(f32 dt, i32 frame) {
     // score
     draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
     draw_text_centered(TextFormat("%d", total_matched), vec2(280, 54), 2, WHITE, GetFontDefault(), 12, 1);
+    draw_text_centered(TextFormat("%d", hiscore_get()), vec2(280, 74), 2,       YELLOW, GetFontDefault(), 12, 1);
 
     // volume
     Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
@@ -510,6 +519,7 @@ void game_draw(f32 dt, i32 frame) {
     if (cur_state == STATE_GAMEOVER) {
         draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
         draw_text_centered("[ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
+        draw_text_centered("[ESC] menu", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
     }
 }
 

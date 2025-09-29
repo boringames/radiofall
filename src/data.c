@@ -50,13 +50,17 @@ static const char* get_home_dir() {
 #endif
 }
 
-bool data_init() {
-    // const char *app_dir = GetApplicationDirectory();
+static const char* radiofall_dir() {
     const char *home_dir = get_home_dir();
     if (!home_dir) {
         return false;
     }
-    const char *radiofall_data_dir = TextFormat("%s/.radiofall", home_dir);
+    return TextFormat("%s/.radiofall", home_dir);
+}
+
+bool data_init() {
+    // const char *app_dir = GetApplicationDirectory();
+    const char *radiofall_data_dir = radiofall_dir();
     if (!DirectoryExists(radiofall_data_dir)) {
         MakeDirectory(radiofall_data_dir);
     }
@@ -64,3 +68,21 @@ bool data_init() {
     return true;
 }
 
+i64 data_read_i64(const char *key) {
+    const char *radiofall_data_dir = radiofall_dir();
+    i32 sz = 0; u8 *data = LoadFileData(TextFormat("%s/%s", radiofall_data_dir, key), &sz);
+    if (sz != sizeof(i64)) {
+        RL_FREE(data);
+        return -1;
+    }
+
+    i64 value = 0;
+    mem_copy(&value, data, sizeof(i64));
+    return value;
+}
+
+bool data_write_i64(const char *key, i64 value) {
+    const char *radiofall_data_dir = radiofall_dir();
+    i32 sz = 0; bool ok = SaveFileData(TextFormat("%s/%s", radiofall_data_dir, key), &value, sizeof(i64));
+    return ok;
+}

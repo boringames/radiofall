@@ -54,3 +54,6 @@ char *text_insert(const char *text, const char *insert, int position);
 void draw_text_centered(const char *text, Vector2 position, int padding, Color color, Font font, float fontSize, float spacing);
 Texture2D load_texture(const char *path);
 Sound load_sound(const char *path);
+
+// Memory stuff
+void mem_copy(void *dst, void *src, u64 size);
