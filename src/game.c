@@ -86,7 +86,6 @@ i32 volume_cooldown = 0;
 // is delayed by a few frames so that they're slowed down
 #define INPUT_LEFT 0
 #define INPUT_RIGHT 1
-#define INPUT_DOWN 2
 
 bool input_buffers[2];
 
@@ -100,7 +99,6 @@ int raylib_key_to_input_key(KeyboardKey key)
 {
     return key == KEY_LEFT  ? INPUT_LEFT
          : key == KEY_RIGHT ? INPUT_RIGHT
-         : key == KEY_DOWN  ? INPUT_DOWN
          : 0;
 }
 
@@ -302,14 +300,11 @@ void falling_state_update(i32 frame)
         }
     }
 
-    if (IsKeyDown(KEY_LEFT)) {
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
         input_buffers[INPUT_LEFT] = true;
     }
-    if (IsKeyDown(KEY_RIGHT)) {
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
         input_buffers[INPUT_RIGHT] = true;
-    }
-    if (IsKeyDown(KEY_DOWN)) {
-        input_buffers[INPUT_DOWN] = true;
     }
 
     i32 xdir = (-is_key_down(KEY_LEFT, state_timer, 4) + is_key_down(KEY_RIGHT, state_timer, 4)) * 16;
