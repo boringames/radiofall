@@ -59,3 +59,33 @@ void mem_copy(void *dst, void *src, u64 size)
         d[i] = s[i];
 }
 
+Shader load_shader(const char *vs, const char *fs)
+{
+    const char *appdir = GetApplicationDirectory();
+    char *_vs = vs ? text_insert(appdir, vs, strlen(appdir)) : NULL;
+    char *_fs = fs ? text_insert(appdir, fs, strlen(appdir)) : NULL;
+    Shader s = LoadShader(_vs, _fs);
+    RL_FREE(_vs);
+    RL_FREE(_fs);
+    return s;
+}
+
+Font load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count)
+{
+    const char *appdir = GetApplicationDirectory();
+    const char *realpath = text_insert(appdir, path, strlen(appdir));
+    int fileSize = 0;
+    unsigned char *fileData = LoadFileData(realpath, &fileSize);
+
+    // SDF font generation from TTF font
+    Font fontSDF = { 0 };
+    fontSDF.baseSize = baseSize;
+    fontSDF.glyphCount = cp_count;
+    fontSDF.glyphs = LoadFontData(fileData, fileSize, baseSize, codepoints, cp_count, FONT_SDF);
+    Image atlas = GenImageFontAtlas(fontSDF.glyphs, &fontSDF.recs, cp_count, baseSize, 0, 1);
+    fontSDF.texture = LoadTextureFromImage(atlas);
+    UnloadImage(atlas);
+    UnloadFileData(fileData);
+    SetTextureFilter(fontSDF.texture, TEXTURE_FILTER_BILINEAR);
+    return fontSDF;
+}

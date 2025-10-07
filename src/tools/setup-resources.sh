@@ -12,3 +12,15 @@ for f in $src_dir/src/resources/*.wav; do
     echo "copying over $target_dir/resources/$name.wav"
     cp $src_dir/src/resources/$name.wav $target_dir/resources/$name.wav
 done
+
+for f in $src_dir/src/resources/*.glsl; do
+    name=$(basename $f .glsl)
+    echo "copying over $target_dir/resources/$name.glsl"
+    cp $src_dir/src/resources/$name.glsl $target_dir/resources/$name.glsl
+done
+
+for f in $src_dir/src/resources/*.ttf; do
+    name=$(basename $f .ttf)
+    echo "copying over $target_dir/resources/$name.ttf"
+    cp $src_dir/src/resources/$name.ttf $target_dir/resources/$name.ttf
+done

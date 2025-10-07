@@ -1,6 +1,7 @@
 #include "hiscore.h"
 
 #include "util.h"
+#include "data.h"
 
 static i64 hiscore = 0;
 void hiscore_init() {

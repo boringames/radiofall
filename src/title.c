@@ -30,6 +30,9 @@ Texture2D tapes;
 Sound menu_select_sfx;
 Sound menu_scroll_sfx;
 
+Shader text_shader;
+Font text_font;
+
 i32 cur_menu_item = MENU_PLAY;
 
 void title_load()
@@ -44,6 +47,13 @@ void title_load()
 
     menu_select_sfx = load_sound("resources/stereo_button.wav");
     menu_scroll_sfx = load_sound("resources/rotate.wav");
+
+    text_shader = load_shader(NULL, "resources/text-outline-sdf.glsl");
+    int codepoints[90-65];
+    for (int i = 65; i <= 90; i++) {
+        codepoints[i-65] = i;
+    }
+    text_font   = load_font_sdf("resources/PollerOne-Regular.ttf", 32, codepoints, COUNT_OF(codepoints));
 }
 
 void title_unload()
@@ -139,6 +149,13 @@ void title_draw(f32 dt, i32 frameno)
 
     DrawTexture(title_ui, 0, 0, WHITE);
     DrawRectangle(40 + ((sin(GetTime()) + 1.0)/2.0) * 240, 130, 2, 6, LIGHTGRAY);
+
+    shader_setv3(text_shader, "outline_color", (Vector3) { .x = 1, .y = 0, .z = 0 });
+    shader_setf(text_shader, "smoothing_param", 30.0);
+    shader_setf(text_shader, "outline_width_param", 50.0);
+    BeginShaderMode(text_shader);
+    DrawTextEx(text_font, "RADIOFALL", vec2(0, 0), text_font.baseSize, 0, WHITE);
+    EndShaderMode();
 }
 
 GameScreen title_exit()

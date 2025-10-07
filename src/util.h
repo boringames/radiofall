@@ -57,3 +57,15 @@ Sound load_sound(const char *path);
 
 // Memory stuff
 void mem_copy(void *dst, void *src, u64 size);
+Shader load_shader(const char *vs, const char *fs);
+Font load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count);
+
+static inline void shader_setf(Shader shader, const char *name, float value)
+{
+    SetShaderValue(shader, GetShaderLocation(shader, name), &value, SHADER_UNIFORM_FLOAT);
+}
+
+static inline void shader_setv3(Shader shader, const char *name, Vector3 value)
+{
+    SetShaderValue(shader, GetShaderLocation(shader, name), &value, SHADER_UNIFORM_VEC3);
+}
