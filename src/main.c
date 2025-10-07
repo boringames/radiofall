@@ -14,6 +14,7 @@
 
 static const i32 SCALE = 4;
 
+static bool window_should_close = false;
 static bool on_transition = false;
 static GameScreen current_screen = SCREEN_TITLE;
 static i32 frameno = 0;
@@ -64,10 +65,10 @@ int main(void)
     screen_table[current_screen].enter();
 
 #if defined(PLATFORM_WEB)
-    emscripten_set_main_loop_arg(iterate, &game_state, 60, 1);
+    emscripten_set_main_loop_arg(iterate, 60, 1);
 #else
     SetTargetFPS(60);
-    while (!WindowShouldClose()) {
+    while (!window_should_close && !WindowShouldClose()) {
         iterate(NULL);
     }
 #endif
@@ -119,6 +120,10 @@ void iterate(void *arg)
     if (!on_transition) {
         screen_table[current_screen].update(dt, frameno);
         int res = screen_table[current_screen].exit();
+        if (res == SCREEN_QUIT) {
+            window_should_close = true;
+        }
+
         if (res != SCREEN_UNKNOWN) {
             transition_to_screen(res);
         }

@@ -15,6 +15,7 @@
 #include "vector.h"
 #include "llist.h"
 #include "hiscore.h"
+#include "sound.h"
 
 #define PATTERN_MATCH_MIN 3
 
@@ -298,7 +299,7 @@ void falling_state_update(i32 frame)
             rotation.in = false;
         }
     } else if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
-        PlaySound(rotate_sfx);
+        sound_play(rotate_sfx);
         memcpy(&rotation.pattern, &cur_piece.patt, sizeof(Pattern));
         pattern_rotate(&rotation.pattern, IsKeyPressed(KEY_Z));
         if (is_valid_pattern_pos(cur_piece.pos, &rotation.pattern)) {
@@ -380,7 +381,7 @@ void game_update(f32 dt, i32 frame) {
             if (matched_patterns.size > 0) {
                 for (size_t i = 0; i < matched_patterns.size; i++) {
                     Pattern out = matched_patterns.data[i];
-                    PlaySound(match_sfx);
+                    sound_play(match_sfx);
                     matched_count++;
                     local_score += out.count;
                     volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);

@@ -3,17 +3,19 @@
 #include "title.h"
 #include "util.h"
 #include "animation_pool.h"
+#include "sound.h"
 
 #define COLOR_UNSELECTED ((Color){200, 200, 200, 255})
 #define COLOR_SELECTED (WHITE)
 
 bool start = false;
+bool quit = false;
 
 enum {
     MENU_PLAY,
     MENU_NEXT,
     MENU_MUTE,
-    MENU_EXIT,
+    MENU_QUIT,
     _MENU_COUNT
 };
 
@@ -54,28 +56,49 @@ void title_enter()
     start = false;
 }
 
-f32 _press_cd = 0.0f;
+f32 _enter_press_cd = 0.0f;
+f32 _arrow_press_cd = 0.0f;
+i32 _prev_menu_item = MENU_QUIT;
 void title_update(f32 dt, i32 frame)
 {
-    if (IsKeyDown(KEY_ENTER) && cur_menu_item == MENU_PLAY) {
-        SetSoundVolume(menu_select_sfx, 0.2f);
-        PlaySound(menu_select_sfx);
-        start = true;
-    };
+    if (_prev_menu_item != cur_menu_item) _enter_press_cd = 0;
+    if (_enter_press_cd > 0.05f) {
+        _enter_press_cd = 0;
+        if (IsKeyDown(KEY_ENTER)) {
+            if (cur_menu_item == MENU_PLAY) {
+                start = true;
+            }
 
-    if (_press_cd > 0.1f) {
-        _press_cd = 0;
+            if (cur_menu_item == MENU_MUTE) {
+                sound_set_enabled(!sound_enabled());
+            }
+
+            if (cur_menu_item == MENU_QUIT) {
+                quit = true;
+            }
+
+            SetSoundVolume(menu_select_sfx, 0.2f);
+            sound_play(menu_select_sfx);
+        }
+    }
+
+    if (_arrow_press_cd > 0.075f) {
+        _arrow_press_cd = 0;
+
         bool is_right = (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT));
         bool is_left = (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT));
         if (is_right != is_left)
-            PlaySound(menu_scroll_sfx);
+            sound_play(menu_scroll_sfx);
 
         if (is_right)
             cur_menu_item = (cur_menu_item + 1) % _MENU_COUNT;
         else if (is_left)
             cur_menu_item = cur_menu_item - 1 < 0 ? _MENU_COUNT - 1 : cur_menu_item - 1;
     }
-    _press_cd += dt;
+
+    _arrow_press_cd += dt;
+    _enter_press_cd += dt;
+    _prev_menu_item = cur_menu_item;
 }
 
 void title_draw(f32 dt, i32 frameno)
@@ -93,12 +116,12 @@ void title_draw(f32 dt, i32 frameno)
         struct
         {
             Texture texture;
-            i32 menu_item
+            i32 menu_item;
         } buttons[] = {
             {play_button, MENU_PLAY},
             {next_button, MENU_NEXT},
             {mute_button, MENU_MUTE},
-            {exit_button, MENU_EXIT}};
+            {exit_button, MENU_QUIT}};
 
         for (int i = 0; i < 4; i++)
         {
@@ -122,6 +145,10 @@ GameScreen title_exit()
 {
     if (start) {
         return SCREEN_GAMEPLAY;
+    }
+
+    if (quit) {
+        return SCREEN_QUIT;
     }
 
     return SCREEN_UNKNOWN;
