@@ -519,7 +519,7 @@ void game_draw(f32 dt, i32 frame) {
     if (cur_state == STATE_GAMEOVER) {
         draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
         draw_text_centered("[ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
-        draw_text_centered("[ESC] menu", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
+        draw_text_centered("[ESC] menu",      vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 40)), 0, WHITE, GetFontDefault(), 12,  1);
     }
 }
 
