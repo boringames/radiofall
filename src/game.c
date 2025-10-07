@@ -14,6 +14,8 @@
 #include "animation_pool.h"
 #include "vector.h"
 #include "llist.h"
+#include "hiscore.h"
+#include "sound.h"
 
 #define PATTERN_MATCH_MIN 3
 
@@ -57,6 +59,7 @@ FallingList *falling_blocks;
 enum {
     STATE_FALLING,
     STATE_SETTLING,
+    STATE_GAMEOVER,
     STATE_END,
 } cur_state;
 
@@ -186,7 +189,7 @@ static void enter_falling_state()
     rotation.in = false;
 
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
-        cur_state = STATE_END;
+        cur_state = STATE_GAMEOVER;
     } else {
         cur_state = STATE_FALLING;
     }
@@ -220,6 +223,9 @@ void game_load()
 
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
+
+    // hiscore state
+    hiscore_load();
 }
 
 void game_unload()
@@ -291,7 +297,7 @@ void falling_state_update(i32 frame)
             rotation.in = false;
         }
     } else if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
-        PlaySound(rotate_sfx);
+        sound_play(rotate_sfx);
         memcpy(&rotation.pattern, &cur_piece.patt, sizeof(Pattern));
         pattern_rotate(&rotation.pattern, IsKeyPressed(KEY_Z));
         if (is_valid_pattern_pos(cur_piece.pos, &rotation.pattern)) {
@@ -330,7 +336,7 @@ void falling_state_update(i32 frame)
         volume_cooldown = CLAMP(volume_cooldown + 1, 0, COOLDOWN_MAX);
         if (volume_cooldown == COOLDOWN_MAX) {
             rotation.in = false;
-            cur_state = STATE_END;
+            cur_state = STATE_GAMEOVER;
         }
     }
 }
@@ -370,7 +376,7 @@ void game_update(f32 dt, i32 frame) {
             if (matched_patterns.size > 0) {
                 for (size_t i = 0; i < matched_patterns.size; i++) {
                     Pattern out = matched_patterns.data[i];
-                    PlaySound(match_sfx);
+                    sound_play(match_sfx);
                     matched_count++;
                     local_score += out.count;
                     volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
@@ -398,6 +404,16 @@ void game_update(f32 dt, i32 frame) {
                 enter_falling_state();
             }
             pattvec_free(&matched_patterns);
+        }
+        break;
+
+    case STATE_GAMEOVER:
+        if (IsKeyDown(KEY_ENTER)) {
+            hiscore_try_set(score);
+            game_enter();
+        } else if (IsKeyDown(KEY_ESCAPE)) {
+            hiscore_try_set(score);
+            cur_state = STATE_END;
         }
         break;
 
@@ -485,6 +501,7 @@ void game_draw(f32 dt, i32 frame) {
     // score
     draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
     draw_text_centered(TextFormat("%d", total_matched), vec2(280, 54), 2, WHITE, GetFontDefault(), 12, 1);
+    draw_text_centered(TextFormat("%d", hiscore_get()), vec2(280, 74), 2,       YELLOW, GetFontDefault(), 12, 1);
 
     // volume
     Vector2 volume_size = vec2(66 - volume_cooldown, 45 - volume_cooldown);
@@ -494,6 +511,12 @@ void game_draw(f32 dt, i32 frame) {
         rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
         vec2(0, 0), 0, WHITE
     );
+
+    if (cur_state == STATE_GAMEOVER) {
+        draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
+        draw_text_centered("[ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
+        draw_text_centered("[ESC] menu",      vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 40)), 0, WHITE, GetFontDefault(), 12,  1);
+    }
 }
 
 GameScreen game_exit()

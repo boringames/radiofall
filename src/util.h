@@ -16,7 +16,6 @@ typedef int16_t  i16;
 typedef int32_t  i32;
 typedef int64_t  i64;
 
-#define VEC2(x, y) ((Vector2) { .x = x, .y = y })
 #define VEC2ZERO ((Vector2) { .x = 0.f, .y = 0.f })
 static inline Vector2 vec2(float x, float y) { return (Vector2) { .x = x, .y = y }; }
 
@@ -55,3 +54,6 @@ char *text_insert(const char *text, const char *insert, int position);
 void draw_text_centered(const char *text, Vector2 position, int padding, Color color, Font font, float fontSize, float spacing);
 Texture2D load_texture(const char *path);
 Sound load_sound(const char *path);
+
+// Memory stuff
+void mem_copy(void *dst, void *src, u64 size);
