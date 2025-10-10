@@ -49,16 +49,6 @@ Sound load_sound(const char *path)
     return s;
 }
 
-void mem_copy(void *dst, void *src, u64 size)
-{
-    u8 *d = (u8*)(dst); const u8 *s = (const u8*)(src);
-    u64 i = 0;
-    for (; i <= size - sizeof(uint64_t); i += sizeof(uint64_t))
-        ((uint64_t*)d)[i/sizeof(uint64_t)] = ((const u64*)s)[i/sizeof(u64)];
-    for (; i < size; i++)
-        d[i] = s[i];
-}
-
 Shader load_shader(const char *vs, const char *fs)
 {
     const char *appdir = GetApplicationDirectory();

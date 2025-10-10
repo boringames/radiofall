@@ -1,6 +1,7 @@
 #include "animation_pool.h"
 
-#include "raylib.h"
+#include <string.h>
+#include <raylib.h>
 #include "util.h"
 
 APool pool = {0};
@@ -12,7 +13,7 @@ i32 apool_add(AnimationFunc anim, i32 for_frames, void *data, u64 size)
     pool.animations[pool.count].for_frames = for_frames;
     pool.animations[pool.count].cur_frame = 0;
     void *copybuf = NULL; if ((copybuf = MemAlloc(size))) {
-        mem_copy(copybuf, data, size);
+        memcpy(copybuf, data, size);
         pool.animations[pool.count].data = copybuf;
     } else {
         GAME_LOG_ERR("alloc of bytes %zu failed, got NULL MemAlloc ptr", size);

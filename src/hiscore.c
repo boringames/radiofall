@@ -17,7 +17,7 @@ void hiscore_load() {
 
 void hiscore_save() {
     if (!data_write_i64("hiscore", hiscore)) {
-        GAME_LOG_ERR("failed saving hiscore value: %d", hiscore);
+        GAME_LOG_ERR("failed saving hiscore value: %" PRIi64, hiscore);
     }
 }
 
