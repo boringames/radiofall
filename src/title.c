@@ -32,7 +32,7 @@ Sound menu_select_sfx;
 Sound menu_scroll_sfx;
 
 Shader text_shader;
-Font text_font;
+Font *text_font;
 
 i32 cur_menu_item = MENU_PLAY;
 
@@ -155,9 +155,8 @@ void title_draw(f32 dt, i32 frameno)
     shader_setf(text_shader, "smoothing_param", 30.0);
     shader_setf(text_shader, "outline_width_param", 50.0);
     BeginShaderMode(text_shader);
-
-    Vector2 title_size = MeasureTextEx(text_font, "RADIOFALL", text_font.baseSize, 0);
-    DrawTextEx(text_font, "RADIOFALL", vec2((RESOLUTION[0] - title_size.x) / 2, 25), text_font.baseSize, 0,
+    Vector2 title_size = MeasureTextEx(*text_font, "RADIOFALL", text_font->baseSize, 0);
+    DrawTextEx(*text_font, "RADIOFALL", vec2((RESOLUTION[0] - title_size.x) / 2, 25), text_font->baseSize, 0,
         (Color) { 0xff, 0xd4, 0x44, 0xff });
     EndShaderMode();
 }

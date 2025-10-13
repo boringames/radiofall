@@ -2,10 +2,10 @@
 run: release
 	./build/release/radiofall/radiofall
 
-release:
+debug:
 	cmake --preset=debug
 	cmake --build build/debug
 
-debug:
+release:
 	cmake --preset=release
 	cmake --build build/release

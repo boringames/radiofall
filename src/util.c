@@ -60,7 +60,7 @@ Shader load_shader(const char *vs, const char *fs)
     return s;
 }
 
-Font load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count)
+Font *load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count)
 {
     const char *appdir = GetApplicationDirectory();
     const char *realpath = text_insert(appdir, path, strlen(appdir));
@@ -68,14 +68,14 @@ Font load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count
     unsigned char *fileData = LoadFileData(realpath, &fileSize);
 
     // SDF font generation from TTF font
-    Font fontSDF = { 0 };
-    fontSDF.baseSize = baseSize;
-    fontSDF.glyphCount = cp_count;
-    fontSDF.glyphs = LoadFontData(fileData, fileSize, baseSize, codepoints, cp_count, FONT_SDF);
-    Image atlas = GenImageFontAtlas(fontSDF.glyphs, &fontSDF.recs, cp_count, baseSize, 0, 1);
-    fontSDF.texture = LoadTextureFromImage(atlas);
+    Font *fontSDF = (Font *)malloc(sizeof(Font));
+    fontSDF->baseSize = baseSize;
+    fontSDF->glyphCount = cp_count;
+    fontSDF->glyphs = LoadFontData(fileData, fileSize, baseSize, codepoints, cp_count, FONT_SDF);
+    Image atlas = GenImageFontAtlas(fontSDF->glyphs, &fontSDF->recs, cp_count, baseSize, 0, 1);
+    fontSDF->texture = LoadTextureFromImage(atlas);
     UnloadImage(atlas);
     UnloadFileData(fileData);
-    SetTextureFilter(fontSDF.texture, TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(fontSDF->texture, TEXTURE_FILTER_BILINEAR);
     return fontSDF;
 }
