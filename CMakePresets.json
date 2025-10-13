@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 6,
     "configurePresets": [
         {
             "name": "debug",
@@ -16,7 +16,7 @@
             "displayName": "Release",
             "description": "Release build",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build/release",
+            "binaryDir": "build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
