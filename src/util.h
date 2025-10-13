@@ -67,3 +67,8 @@ static inline void shader_setv3(Shader shader, const char *name, Vector3 value)
 {
     SetShaderValue(shader, GetShaderLocation(shader, name), &value, SHADER_UNIFORM_VEC3);
 }
+
+static inline Vector3 color_to_vec3(Color c)
+{
+    return (Vector3) { .x = c.r / 255.f, .y = c.g / 255.f, .z = c.b / 255.f };
+}

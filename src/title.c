@@ -4,6 +4,7 @@
 #include "util.h"
 #include "animation_pool.h"
 #include "sound.h"
+#include "main.h"
 
 #define COLOR_UNSELECTED ((Color){200, 200, 200, 255})
 #define COLOR_SELECTED (WHITE)
@@ -150,11 +151,14 @@ void title_draw(f32 dt, i32 frameno)
     DrawTexture(title_ui, 0, 0, WHITE);
     DrawRectangle(40 + ((sin(GetTime()) + 1.0)/2.0) * 240, 130, 2, 6, LIGHTGRAY);
 
-    shader_setv3(text_shader, "outline_color", (Vector3) { .x = 1, .y = 0, .z = 0 });
+    shader_setv3(text_shader, "outline_color", color_to_vec3((Color) { 0x7d, 0x68, 0x22, 0xff }));
     shader_setf(text_shader, "smoothing_param", 30.0);
     shader_setf(text_shader, "outline_width_param", 50.0);
     BeginShaderMode(text_shader);
-    DrawTextEx(text_font, "RADIOFALL", vec2(0, 0), text_font.baseSize, 0, WHITE);
+
+    Vector2 title_size = MeasureTextEx(text_font, "RADIOFALL", text_font.baseSize, 0);
+    DrawTextEx(text_font, "RADIOFALL", vec2((RESOLUTION[0] - title_size.x) / 2, 25), text_font.baseSize, 0,
+        (Color) { 0xff, 0xd4, 0x44, 0xff });
     EndShaderMode();
 }
 
