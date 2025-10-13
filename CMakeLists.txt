@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.24...3.30)
-project(game)
+project(radiofall
+    LANGUAGES C
+    VERSION 1.0.0
+    DESCRIPTION "A falling blocks game I guess"
+    HOMEPAGE_URL https://github.com/boringames/radiofall
+)
 
 include(FetchContent)
 
