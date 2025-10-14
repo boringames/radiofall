@@ -51,7 +51,7 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} raylib)
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter -g)
 
 # Web Configurations
 if ("${PLATFORM}" STREQUAL "Web")

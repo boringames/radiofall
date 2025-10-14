@@ -56,7 +56,7 @@ void draw_text_centered(const char *text, Vector2 position, int padding, Color c
 Texture2D load_texture(const char *path);
 Sound load_sound(const char *path);
 Shader load_shader(const char *vs, const char *fs);
-Font load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count);
+Font *load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_count);
 
 static inline void shader_setf(Shader shader, const char *name, float value)
 {
