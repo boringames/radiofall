@@ -1,4 +1,5 @@
 #include <raylib.h>
+#include <raymath.h>
 #include <math.h>
 #include "title.h"
 #include "util.h"
@@ -8,6 +9,9 @@
 
 #define COLOR_UNSELECTED ((Color){200, 200, 200, 255})
 #define COLOR_SELECTED (WHITE)
+
+#define TITLE_TEXT_COLOR ((Color) { 0xff, 0xd4, 0x44, 0xff })
+#define TITLE_TEXT_COLOR_OUTLINE ((Color) { 0x7d, 0x68, 0x22, 0xff })
 
 bool start = false;
 bool quit = false;
@@ -22,6 +26,7 @@ enum {
 
 Texture2D title_ui;
 Texture2D title_ui_bg;
+Texture2D title_ui_bg_blocks;
 Texture2D play_button;
 Texture2D next_button;
 Texture2D mute_button;
@@ -38,8 +43,9 @@ i32 cur_menu_item = MENU_PLAY;
 
 void title_load()
 {
-    title_ui = load_texture("resources/title_screen.png");
-    title_ui_bg = load_texture("resources/title_screen_bg.png");
+    title_ui = load_texture("resources/title-radio.png");
+    title_ui_bg = load_texture("resources/title-bg.png");
+    title_ui_bg_blocks = load_texture("resources/title-bg-blocks.png");
     tapes = load_texture("resources/title_tapes.png");
     play_button = load_texture("resources/play_button.png");
     next_button = load_texture("resources/next_button.png");
@@ -114,13 +120,22 @@ void title_update(f32 dt, i32 frame)
 
 void title_draw(f32 dt, i32 frameno)
 {
-    {
-        Rectangle src = { .x = 0, .y = 0, .height = title_ui_bg.height, .width = title_ui_bg.width };
-        Rectangle dst = { .x = 0, .y = 0, .height = 240, .width = 320};
-        src.y = frameno / 2;
-        DrawTexturePro(title_ui_bg, src, dst, VEC2ZERO, 0, WHITE);
-    }
+    DrawTexturePro(
+        title_ui_bg,
+        (Rectangle) { .x =  0, .y = 0, .width = title_ui_bg.width, .height = title_ui_bg.height },
+        (Rectangle) { .x =  0, .y = 0, .width = title_ui_bg.width, .height = title_ui_bg.height },
+        VEC2ZERO, 0, WHITE
+    );
+
+    DrawTexturePro(
+        title_ui_bg_blocks,
+        (Rectangle) { .x = 0, .y = frameno/2, .height = title_ui_bg_blocks.height, .width = title_ui_bg_blocks.width },
+        (Rectangle) { .x = 0, .y = 0, .height = 240, .width = 320},
+        VEC2ZERO, 0, WHITE
+    );
+
     apool_update(dt);
+
     {
         f32 floating_off = start ? (sin(GetTime() * 10) * 2) + 4 : (sin(GetTime() * 10)) + 1;
 
@@ -142,23 +157,25 @@ void title_draw(f32 dt, i32 frameno)
             DrawTexture(buttons[i].texture, x, y, color);
         }
     }
-    {
-        Rectangle src = {0.0f, 0.0f, tapes.width * ((frameno / 8) % 2 == 0 ? -1 : 1), tapes.height};
-        Rectangle dst = {64.0f, 144.0f, tapes.width, tapes.height};
-        DrawTexturePro(tapes, src, dst, (Vector2){0, 0}, 0, WHITE);
-    }
+
+    DrawTexturePro(
+        tapes,
+        (Rectangle) {0.0f, 0.0f, tapes.width * ((frameno / 8) % 2 == 0 ? -1 : 1), tapes.height},
+        (Rectangle) {64.0f, 144.0f, tapes.width, tapes.height},
+        vec2(0, 0), 0, WHITE
+    );
 
     DrawTexture(title_ui, 0, 0, WHITE);
     DrawRectangle(40 + ((sin(GetTime()) + 1.0)/2.0) * 240, 130, 2, 6, LIGHTGRAY);
 
-    shader_setv3(text_shader, "outline_color", color_to_vec3((Color) { 0x7d, 0x68, 0x22, 0xff }));
+    Vector2 title_size = MeasureTextEx(text_font, "RADIOFALL", text_font.baseSize, 0);
+    Vector2 title_pos  = vec2((RESOLUTION[0] - title_size.x) / 2, 25);
+    DrawTextEx(text_font, "RADIOFALL", Vector2Add(title_pos, vec2(0, 2)), text_font.baseSize, 0, (Color) { 0, 0, 0, 0xff });
+    shader_setv3(text_shader, "outline_color", color_to_vec3(TITLE_TEXT_COLOR_OUTLINE));
     shader_setf(text_shader, "smoothing_param", 30.0);
     shader_setf(text_shader, "outline_width_param", 50.0);
     BeginShaderMode(text_shader);
-
-    Vector2 title_size = MeasureTextEx(text_font, "RADIOFALL", text_font.baseSize, 0);
-    DrawTextEx(text_font, "RADIOFALL", vec2((RESOLUTION[0] - title_size.x) / 2, 25), text_font.baseSize, 0,
-        (Color) { 0xff, 0xd4, 0x44, 0xff });
+    DrawTextEx(text_font, "RADIOFALL", title_pos, text_font.baseSize, 0, TITLE_TEXT_COLOR);
     EndShaderMode();
 }
 
