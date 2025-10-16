@@ -175,7 +175,7 @@ void title_draw(f32 dt, i32 frameno)
     shader_setf(text_shader, "smoothing_param", 30.0);
     shader_setf(text_shader, "outline_width_param", 50.0);
     BeginShaderMode(text_shader);
-    DrawTextEx(*text_font, "RADIOFALL", title_pos, text_font.baseSize, 0, TITLE_TEXT_COLOR);
+    DrawTextEx(*text_font, "RADIOFALL", title_pos, text_font->baseSize, 0, TITLE_TEXT_COLOR);
     EndShaderMode();
 }
 
