@@ -6,18 +6,13 @@
 
 APool pool = {0};
 
-i32 apool_add(AnimationFunc anim, i32 for_frames, void *data, u64 size)
+i32 apool_add(AnimationFunc anim, i32 for_frames, void *data)
 {
     if (pool.count >= ANIMATIONS_POOL_MAX) return -1;
     pool.animations[pool.count].animation = anim;
     pool.animations[pool.count].for_frames = for_frames;
     pool.animations[pool.count].cur_frame = 0;
-    void *copybuf = NULL; if ((copybuf = MemAlloc(size))) {
-        memcpy(copybuf, data, size);
-        pool.animations[pool.count].data = copybuf;
-    } else {
-        GAME_LOG_ERR("alloc of bytes %zu failed, got NULL MemAlloc ptr", size);
-    }
+    pool.animations[pool.count].data = data;
     return pool.count++;
 }
 

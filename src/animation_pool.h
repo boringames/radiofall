@@ -11,7 +11,6 @@ typedef struct {
     AnimationFunc animation;
     i32 for_frames;
     i32 cur_frame;
-
     void *data;
 } _Animation;
 
@@ -20,6 +19,6 @@ typedef struct {
     i32 count;
 } APool;
 
-i32 apool_add(AnimationFunc anim, i32 for_frames, void *data, u64 size);
+i32 apool_add(AnimationFunc anim, i32 for_frames, void *data);
 void apool_remove(i32 idx);
 void apool_update(f32 dt);
