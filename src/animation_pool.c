@@ -1,45 +1,36 @@
 #include "animation_pool.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <raylib.h>
+#include <assert.h>
 #include "util.h"
+#include "vector.h"
 
-APool pool = {0};
+VECTOR_DECLARE(APool, Animation, anim_pool)
+VECTOR_DEFINE(APool, Animation, anim_pool)
 
-i32 apool_add(AnimationFunc anim, i32 for_frames, void *data)
+APool pool = VECTOR_INIT();
+
+void apool_add(Animation anim)
 {
-    if (pool.count >= ANIMATIONS_POOL_MAX) return -1;
-    pool.animations[pool.count].animation = anim;
-    pool.animations[pool.count].for_frames = for_frames;
-    pool.animations[pool.count].cur_frame = 0;
-    pool.animations[pool.count].data = data;
-    return pool.count++;
-}
-
-void apool_remove(i32 idx)
-{
-    if (idx < 0 || idx >= pool.count) {
-        return;
-    }
-    MemFree(pool.animations[idx].data);
-    for (i32 i = idx; i < pool.count - 1; i++) {
-        pool.animations[i] = pool.animations[i + 1];
-    }
-    pool.count--;
+    anim_pool_add(&pool, anim);
 }
 
 void apool_update(f32 dt)
 {
-    for (i32 i = 0; i < pool.count; i++) {
-        if (pool.animations[i].for_frames > 0) {
-            pool.animations[i].animation(
-                pool.animations[i].data,
-                dt, pool.animations[i].cur_frame++
-            );
-            if (pool.animations[i].cur_frame == pool.animations[i].for_frames) {
-                apool_remove(i);
-                i--;
-            }
+    for (i32 i = 0; i < pool.size; i++) {
+        if (pool.data[i].anim_update(pool.data[i].data, dt, pool.data[i].cur_frame++)) {
+            anim_pool_remove_i(&pool, i);
+            i--;
         }
     }
+}
+
+void apool_free()
+{
+    for (i32 i = 0; i < pool.size; i++) {
+        free(pool.data[i].data);
+    }
+    anim_pool_free(&pool);
 }

@@ -264,12 +264,17 @@ void game_enter() {
     init_cur_piece();
 }
 
-void animate_score(void *context, f32 dt, i32 frameno) {
+bool animate_score(void *context, f32 dt, i32 frameno) {
     MatchInfo *m = (MatchInfo *)(context);
     DrawText(TextFormat("+%d", m->pcount),
             (m->pos.x * GRID_CELL_SIDE) + GRID_POS.x + cos(frameno) ,
             (m->pos.y * GRID_CELL_SIDE) + GRID_POS.y + sin(frameno),
             12, WHITE);
+    if (frameno == 128) {
+        free(m);
+        return true;
+    }
+    return false;
 }
 
 bool is_key_down(KeyboardKey key, i32 timer, i32 time)
@@ -383,7 +388,7 @@ void falling_blocks_update(f32 dt, i32 frame)
         if (matched_patterns.size > 0) {
             i32 matched_count = 0;
             i32 local_score = 0;
-            for (size_t i = 0; i < matched_patterns.size; i++) {
+            for (ptrdiff_t i = 0; i < matched_patterns.size; i++) {
                 Pattern out = matched_patterns.data[i];
                 sound_play(match_sfx);
                 matched_count++;
@@ -391,10 +396,14 @@ void falling_blocks_update(f32 dt, i32 frame)
                 volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
                 iVec2 min = pattern_min(&out);
                 pattern_normalize(&out);
-                apool_add(animate_score, 128, matchdup(&(MatchInfo) {
-                    .pcount = out.count,
-                    .pos = ivec2_plus(min, pattern_origin(&out)),
-                }));
+                apool_add((Animation) {
+                    .anim_update = animate_score,
+                    .cur_frame = 0,
+                    .data = matchdup(&(MatchInfo) {
+                        .pcount = out.count,
+                        .pos = ivec2_plus(min, pattern_origin(&out)),
+                    })
+                });
             }
             score += local_score * matched_count;
             total_matched += matched_count;
