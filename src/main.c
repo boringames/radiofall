@@ -131,7 +131,6 @@ void iterate(void *arg)
         update_transition();
     }
 
-    BeginDrawing();
     BeginTextureMode(render_texture);
     ClearBackground(BLACK);
 
@@ -143,6 +142,8 @@ void iterate(void *arg)
     }
 
     EndTextureMode();
+
+    BeginDrawing();
 
     DrawTexturePro(
         render_texture.texture,

@@ -60,6 +60,7 @@ LLIST_DEFINE(FallingList, FallingBlock, falling_list)
 
 FallingList *falling_blocks;
 
+// for score animation
 typedef struct {
     iVec2 pos; // origin of the pattern match and just "sweeped"
     i32 pcount;
@@ -71,6 +72,25 @@ MatchInfo *matchdup(MatchInfo *m)
     n->pos = m->pos;
     n->pcount = m->pcount;
     return n;
+}
+
+// for matching blocks falling animation
+typedef struct {
+    Pattern p;
+    Vector2 pos;
+} MatchedFallingAnim;
+
+MatchedFallingAnim *matching_falling_anim_dup(MatchedFallingAnim *m)
+{
+    printf("dupping\n");
+    MatchedFallingAnim *a = malloc(sizeof(MatchedFallingAnim));
+    printf("color =");
+    for (i32 i = 0; i < m->p.count; i++) {
+        printf("%d ", m->p.color[i]);
+    }
+    printf("\n");
+    memcpy(a, m, sizeof(MatchedFallingAnim));
+    return a;
 }
 
 enum {
@@ -143,6 +163,7 @@ bool is_valid_pattern_pos(Vector2 base_pos, Pattern *p)
 static void find_pattern(iVec2 pos, GridColor color, Pattern *pattern, bool visited[GRID_HEIGHT][GRID_WIDTH]) {
     visited[pos.y][pos.x] = true;
     pattern->coords[pattern->count] = pos;
+    pattern->color [pattern->count] = color;
     pattern->count++;
     for (i32 i = 0; i < 4; i++) {
         iVec2 neighbor = ivec2_plus(pos, DIRS[i]);
@@ -162,24 +183,15 @@ static PatternVector grid_sweep() {
                 continue;
             }
 
-            Pattern *p = pattbuf_enqueue_ptr(&pattern_buffer);
-            if (!p) {
-                continue;
-            }
-
-            p->count = 0;
-            find_pattern(IVEC2(j, i), grid.colors[i][j], p, visited);
-            if (p->count < PATTERN_MATCH_MIN) {
-                pattbuf_dequeue_tail(&pattern_buffer, NULL);
-            } else {
-                for (i32 k=0; k<p->count; k++) {
-                    grid.colors[p->coords[k].y][p->coords[k].x] = COLOR_EMPTY;
+            Pattern p = { .count = 0 };
+            find_pattern(IVEC2(j, i), grid.colors[i][j], &p, visited);
+            if (p.count >= PATTERN_MATCH_MIN) {
+                for (i32 i = 0; i < p.count; i++) {
+                    grid.colors[p.coords[i].y][p.coords[i].x] = COLOR_EMPTY;
                 }
-                for (i32 i = 0; i < p->count; i++) {
-                    p->color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
-                }
-                pattvec_add(&matched_patterns, *p);
-                pattern_normalize(p);
+                pattvec_add(&matched_patterns, p);
+                pattern_normalize(&p);
+                pattbuf_enqueue(&pattern_buffer, p);
             }
         }
     }
@@ -189,8 +201,13 @@ static PatternVector grid_sweep() {
 
 static void init_cur_piece()
 {
+    printf("init piece\n");
     if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         pattern_generate(&cur_piece.patt);
+    } else {
+        for (i32 i = 0; i < cur_piece.patt.count; i++) {
+            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
+        }
     }
     i32 x = pattern_max(&cur_piece.patt).x + 1;
     cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
@@ -339,10 +356,14 @@ void falling_piece_update(i32 frame)
     cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
         cur_piece.pos.y = floorf(cur_piece.pos.y / 16.f) * 16.f;
+
+        // add each block of the piece to the falling block list
         for (i32 i = 0; i < cur_piece.patt.count; i++) {
              Vector2 pos = Vector2Add(cur_piece.pos, Vector2Scale(as_vec2(cur_piece.patt.coords[i]), 16));
              add_falling_block(pos, cur_piece.patt.color[i]);
         }
+
+        // hide piece
         cur_piece.pos = vec2(-100, -100);
         cur_piece.rotation.playing = false;
         cur_piece.falling = false;
@@ -362,6 +383,8 @@ void volume_update(i32 frame)
         }
     }
 }
+
+bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno);
 
 void falling_blocks_update(f32 dt, i32 frame)
 {
@@ -395,8 +418,21 @@ void falling_blocks_update(f32 dt, i32 frame)
                 matched_count++;
                 local_score += out.count;
                 volume_cooldown = CLAMP(volume_cooldown - out.count, 0, COOLDOWN_MAX);
+
                 iVec2 min = pattern_min(&out);
                 pattern_normalize(&out);
+
+                // add a falling animation for the matched pattern
+                apool_add((Animation) {
+                    .anim_update = animate_matched_pattern_fall,
+                    .cur_frame = 0,
+                    .data = matching_falling_anim_dup(&(MatchedFallingAnim) {
+                        .p = out,
+                        .pos = Vector2Scale(as_vec2(min), GRID_CELL_SIDE),
+                    }),
+                });
+
+                // add score animation
                 apool_add((Animation) {
                     .anim_update = animate_score,
                     .cur_frame = 0,
@@ -477,6 +513,22 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
         Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
         draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
     }
+}
+
+bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno)
+{
+    MatchedFallingAnim *a = (MatchedFallingAnim *) context;
+    Vector2 base_pos = Vector2Add(GRID_POS, a->pos);
+    for (i32 i = 0; i < a->p.count; i++) {
+        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(a->p.coords[i]), GRID_CELL_SIDE));
+        // draw_block(pos, a->p.color[i], 0);
+    }
+
+    if (frameno > 128) {
+        free(a);
+        return true;
+    }
+    return false;
 }
 
 const i32 block_frames[] = { 0, 1, 2, 3, 2, 1, };

@@ -106,3 +106,9 @@ void pattern_generate(Pattern *p)
     pattern_normalize(p);
 }
 
+Pattern *pattern_dup(Pattern *p)
+{
+    Pattern *q = malloc(sizeof(Pattern));
+    memcpy(q, p, sizeof(Pattern));
+    return q;
+}
