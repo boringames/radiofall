@@ -262,6 +262,7 @@ void game_enter() {
     total_matched = 0;
     state_timer = 0;
     init_cur_piece();
+    cur_state = STATE_RUNNING;
 }
 
 bool animate_score(void *context, f32 dt, i32 frameno) {
