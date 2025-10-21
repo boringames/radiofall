@@ -53,6 +53,20 @@ iVec2 pattern_max(Pattern *p)
     return IVEC2(maxx, maxy);
 }
 
+i32 pattern_height(Pattern *p)
+{
+    iVec2 min = pattern_min(p);
+    iVec2 max = pattern_max(p);
+    return abs(max.y - min.y);
+}
+
+i32 pattern_width(Pattern *p)
+{
+    iVec2 min = pattern_min(p);
+    iVec2 max = pattern_max(p);
+    return abs(max.x - min.x);
+}
+
 iVec2 pattern_origin(Pattern *p)
 {
     iVec2 m = pattern_max(p);

@@ -49,7 +49,7 @@ void iterate(void *arg);
 
 int main(void)
 {
-    InitWindow(RESOLUTION[0] * SCALE, RESOLUTION[1] * SCALE, "raylib game template");
+    InitWindow(RESOLUTION[0] * SCALE, RESOLUTION[1] * SCALE, "RADIOFALL");
     InitAudioDevice();
 
     if (!data_init()) {

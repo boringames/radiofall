@@ -31,6 +31,9 @@ static const Vector2 GRID_POS = {96, 16};
 // contains matched patterns, queued up to be placed at the top
 PatternBuffer pattern_buffer;
 
+RenderTexture2D preview1_render_texture;
+RenderTexture2D preview2_render_texture;
+
 // when a new pattern is needed, it is copied here
 struct {
     Vector2 pos;
@@ -268,6 +271,8 @@ void game_unload()
 }
 
 void game_enter() {
+    cur_state = STATE_RUNNING;
+
     for (i32 y = 0; y < GRID_HEIGHT; y++)
         for (i32 x = 0; x < GRID_WIDTH; x++)
             grid.colors[y][x] = COLOR_EMPTY;
@@ -501,17 +506,41 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
 {
     i32 bg_frame = ((frame / 8) % 2) * box_size.x;
     DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
-    if (pattbuf_size(&pattern_buffer) <= n) {
+    if (pattbuf_size(&pattern_buffer) <= n)
         return;
-    }
+
     Pattern *p = pattbuf_peek(&pattern_buffer, n);
     iVec2 max = pattern_max(p);
     Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
     Vector2 base_pos = vec2(where.x + floorf((box_size.x - patt_size.x) * 0.5f),
                             where.y + floorf((box_size.y - patt_size.y) * 0.5f));
+
+    f32 scale = 1.0f;
+
+    i32 fit_h = box_size.y - 10;
+    i32 pheight = pattern_height(p) * GRID_CELL_SIDE;
+    if (pheight > fit_h) {
+        scale = 1.0 - (f32)pheight/(f32)fit_h;
+    }
+
+    i32 fit_w = box_size.x - 10;
+    i32 pwidth = pattern_width(p) * GRID_CELL_SIDE;
+    if (pwidth > fit_w) {
+        scale = 1.0 - (f32)pwidth/(f32)fit_w;
+    }
+    
     for (i32 i = 0; i < p->count; i++) {
+        const GridColor color = p->color[i];
         Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
-        draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
+
+        // draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
+        DrawTexturePro(blocks,
+            rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE),
+                vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
+            rec(Vector2Add(base_pos, Vector2Scale(pos, scale)),
+                Vector2Scale(vec2(GRID_CELL_SIDE, GRID_CELL_SIDE), scale)),
+            Vector2Zero(), 0.0f, WHITE
+        );
     }
 }
 
