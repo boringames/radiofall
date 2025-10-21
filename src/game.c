@@ -77,23 +77,16 @@ MatchInfo *matchdup(MatchInfo *m)
     return n;
 }
 
-// for matching blocks falling animation
 typedef struct {
-    Pattern p;
     Vector2 pos;
-} MatchedFallingAnim;
+    Pattern p;
+} Piece;
 
-MatchedFallingAnim *matching_falling_anim_dup(MatchedFallingAnim *m)
+Piece *piece_dup(Piece *p)
 {
-    printf("dupping\n");
-    MatchedFallingAnim *a = malloc(sizeof(MatchedFallingAnim));
-    printf("color =");
-    for (i32 i = 0; i < m->p.count; i++) {
-        printf("%d ", m->p.color[i]);
-    }
-    printf("\n");
-    memcpy(a, m, sizeof(MatchedFallingAnim));
-    return a;
+    Piece *q = malloc(sizeof(Piece));
+    memcpy(q, p, sizeof(Piece));
+    return q;
 }
 
 enum {
@@ -194,7 +187,6 @@ static PatternVector grid_sweep() {
                 }
                 pattvec_add(&matched_patterns, p);
                 pattern_normalize(&p);
-                pattbuf_enqueue(&pattern_buffer, p);
             }
         }
     }
@@ -204,7 +196,6 @@ static PatternVector grid_sweep() {
 
 static void init_cur_piece()
 {
-    printf("init piece\n");
     if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
         pattern_generate(&cur_piece.patt);
     } else {
@@ -431,9 +422,9 @@ void falling_blocks_update(f32 dt, i32 frame)
                 apool_add((Animation) {
                     .anim_update = animate_matched_pattern_fall,
                     .cur_frame = 0,
-                    .data = matching_falling_anim_dup(&(MatchedFallingAnim) {
-                        .p = out,
+                    .data = piece_dup(&(Piece) {
                         .pos = Vector2Scale(as_vec2(min), GRID_CELL_SIDE),
+                        .p = out,
                     }),
                 });
 
@@ -533,7 +524,7 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
         const GridColor color = p->color[i];
         Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
 
-        // draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
+        // draw_block(Vector2Add(base_pos, pos), p->color[i], 0, scale);
         DrawTexturePro(blocks,
             rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE),
                 vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
@@ -544,19 +535,27 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
     }
 }
 
+f32 second_motion_equation(f32 t, f32 s0, f32 v0, f32 a)
+{
+    return s0 + v0 * t + 0.5f * a * powf(t, 2);
+}
+
 bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno)
 {
-    MatchedFallingAnim *a = (MatchedFallingAnim *) context;
-    Vector2 base_pos = Vector2Add(GRID_POS, a->pos);
-    for (i32 i = 0; i < a->p.count; i++) {
-        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(a->p.coords[i]), GRID_CELL_SIDE));
-        // draw_block(pos, a->p.color[i], 0);
-    }
-
-    if (frameno > 128) {
-        free(a);
+    Piece *p = (Piece *) context;
+    Vector2 base_pos = Vector2Add(GRID_POS, p->pos);
+    base_pos.y = second_motion_equation(frameno, base_pos.y, -2.f, 0.1f);
+    if (base_pos.y > GRID_POS.y + GRID_HEIGHT * GRID_CELL_SIDE) {
+        pattbuf_enqueue(&pattern_buffer, p->p);
+        free(p);
         return true;
     }
+
+    for (i32 i = 0; i < p->p.count; i++) {
+        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(p->p.coords[i]), GRID_CELL_SIDE));
+        draw_block(pos, p->p.color[i], 0);
+    }
+
     return false;
 }
 
