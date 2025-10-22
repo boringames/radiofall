@@ -72,3 +72,17 @@ static inline Vector3 color_to_vec3(Color c)
 {
     return (Vector3) { .x = c.r / 255.f, .y = c.g / 255.f, .z = c.b / 255.f };
 }
+
+static inline f32 lerp(f32 a, f32 b, f32 t)
+{
+    return (1 - t) * a + t * b;
+}
+
+#define DEFINE_DUP_FN(type, name) \
+type *name##_dup(type *a) \
+{ \
+    type *b = malloc(sizeof(*a)); \
+    memcpy(b, a, sizeof(*a)); \
+    return b; \
+} \
+

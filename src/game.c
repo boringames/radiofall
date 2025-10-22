@@ -34,6 +34,9 @@ PatternBuffer pattern_buffer;
 RenderTexture2D preview1_render_texture;
 RenderTexture2D preview2_render_texture;
 
+const Rectangle preview1box = (Rectangle) { 7,  28, 68, 47 };
+const Rectangle preview2box = (Rectangle) { 8, 165, 64, 65 };
+
 // when a new pattern is needed, it is copied here
 struct {
     Vector2 pos;
@@ -493,8 +496,10 @@ void draw_block(Vector2 pos, GridColor color, i32 frame)
     );
 }
 
-void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 frame)
+void draw_preview(size_t n, Rectangle box, Texture2D bg, i32 frame)
 {
+    Vector2 where = vec2(box.x, box.y);
+    Vector2 box_size = vec2(box.width, box.height);
     i32 bg_frame = ((frame / 8) % 2) * box_size.x;
     DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
     if (pattbuf_size(&pattern_buffer) <= n)
@@ -506,6 +511,7 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
     Vector2 base_pos = vec2(where.x + floorf((box_size.x - patt_size.x) * 0.5f),
                             where.y + floorf((box_size.y - patt_size.y) * 0.5f));
 
+    /*
     f32 scale = 1.0f;
 
     i32 fit_h = box_size.y - 10;
@@ -519,12 +525,14 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
     if (pwidth > fit_w) {
         scale = 1.0 - (f32)pwidth/(f32)fit_w;
     }
-    
+    */
+
     for (i32 i = 0; i < p->count; i++) {
-        const GridColor color = p->color[i];
         Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
 
-        // draw_block(Vector2Add(base_pos, pos), p->color[i], 0, scale);
+        draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
+        /*
+        const GridColor color = p->color[i];
         DrawTexturePro(blocks,
             rec(vec2((color-1) * GRID_CELL_SIDE, frame * GRID_CELL_SIDE),
                 vec2(GRID_CELL_SIDE, GRID_CELL_SIDE)),
@@ -532,6 +540,7 @@ void draw_preview(size_t n, Vector2 where, Vector2 box_size, Texture2D bg, i32 f
                 Vector2Scale(vec2(GRID_CELL_SIDE, GRID_CELL_SIDE), scale)),
             Vector2Zero(), 0.0f, WHITE
         );
+        */
     }
 }
 
@@ -540,13 +549,44 @@ f32 second_motion_equation(f32 t, f32 s0, f32 v0, f32 a)
     return s0 + v0 * t + 0.5f * a * powf(t, 2);
 }
 
+typedef struct {
+    Vector2 init_pos;
+    Vector2 end_pos;
+    Pattern p;
+} MovementAnim;
+
+DEFINE_DUP_FN(MovementAnim, movement_anim)
+
+bool animate_enter_preview(void *context, f32 dt, i32 frameno);
+
+Rectangle find_preview()
+{
+    return preview1box;
+}
+
 bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno)
 {
     Piece *p = (Piece *) context;
     Vector2 base_pos = Vector2Add(GRID_POS, p->pos);
     base_pos.y = second_motion_equation(frameno, base_pos.y, -2.f, 0.1f);
     if (base_pos.y > GRID_POS.y + GRID_HEIGHT * GRID_CELL_SIDE) {
-        pattbuf_enqueue(&pattern_buffer, p->p);
+        Rectangle box = find_preview();
+        iVec2 max = pattern_max(&p->p);
+        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+        Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                                box.y + box.height);
+        Vector2 end_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                               box.y + floorf((box.height - patt_size.y) / 2.f));
+
+        apool_add((Animation) {
+            .anim_update = animate_enter_preview,
+            .cur_frame = 0,
+            .data = movement_anim_dup(&(MovementAnim) {
+                .init_pos = init_pos,
+                .end_pos = end_pos,
+                .p = p->p,
+            })
+        });
         free(p);
         return true;
     }
@@ -554,6 +594,29 @@ bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno)
     for (i32 i = 0; i < p->p.count; i++) {
         Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(p->p.coords[i]), GRID_CELL_SIDE));
         draw_block(pos, p->p.color[i], 0);
+    }
+
+    return false;
+}
+
+bool animate_enter_preview(void *context, f32 dt, i32 frameno)
+{
+    MovementAnim *p = (MovementAnim *) context;
+
+    f32 t = frameno / 16.f;
+    Vector2 base_pos = t >= 1.f ? p->end_pos
+                                : vec2(lerp(p->init_pos.x, p->end_pos.x, t),
+                                       lerp(p->init_pos.y, p->end_pos.y, t));
+
+    for (i32 i = 0; i < p->p.count; i++) {
+        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(p->p.coords[i]), GRID_CELL_SIDE));
+        draw_block(pos, p->p.color[i], 0);
+    }
+
+    if (t >= 1.f) {
+        pattbuf_enqueue(&pattern_buffer, p->p);
+        free(p);
+        return true;
     }
 
     return false;
@@ -567,8 +630,8 @@ void game_draw(f32 dt, i32 frame) {
     DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), GRID_POS, WHITE);
 
     // previews
-    draw_preview(0, vec2(7,  28), vec2(68, 47), preview1, frame);
-    draw_preview(1, vec2(8, 165), vec2(64, 65), preview2, frame);
+    draw_preview(0, preview1box, preview1, frame);
+    draw_preview(1, preview2box, preview2, frame);
 
     // current piece
     i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];
