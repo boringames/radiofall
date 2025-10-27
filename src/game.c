@@ -399,9 +399,17 @@ void volume_update(i32 frame)
     }
 }
 
-Rectangle find_preview_box()
+bool find_preview_box(Rectangle *r)
 {
-    return preview1box;
+    ptrdiff_t num_anims = apool_find_type_count(2);
+    if (num_anims == 0) {
+        *r = preview1box;
+        return true;
+    } else if (num_anims == 1) {
+        *r = preview2box;
+        return true;
+    }
+    return false;
 }
 
 void anim_add_preview(MovementAnim *a)
@@ -411,26 +419,28 @@ void anim_add_preview(MovementAnim *a)
 
 void anim_begin_enter_preview(MovementAnim *a)
 {
-    Rectangle box = find_preview_box();
-    iVec2 max = pattern_max(&a->patt);
-    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-    Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                            box.y + box.height);
-    Vector2 end_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                           box.y + floorf((box.height - patt_size.y) / 2.f));
+    Rectangle box;
+    if (find_preview_box(&box)) {
+        iVec2 max = pattern_max(&a->patt);
+        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+        float x = box.x + floorf((box.width  - patt_size.x) / 2.f);
+        Vector2 init_pos = vec2(x, box.y + box.height);
+        Vector2 end_pos  = vec2(x, box.y + floorf((box.height - patt_size.y) / 2.f));
 
-    apool_add((Animation) {
-        .anim_update = generic_movement_animation,
-        .cur_frame = 0,
-        .data = movement_anim_dup(&(MovementAnim) {
-            .init_pos = init_pos,
-            .end_pos = end_pos,
-            .vel = vec2(0, -1),
-            .accel = vec2(0, 0),
-            .patt = a->patt,
-            .on_end = anim_add_preview,
-        })
-    });
+        apool_add((Animation) {
+            .type = 2,
+            .anim_update = generic_movement_animation,
+            .cur_frame = 0,
+            .data = movement_anim_dup(&(MovementAnim) {
+                .init_pos = init_pos,
+                .end_pos = end_pos,
+                .vel = vec2(0, -1),
+                .accel = vec2(0, 0),
+                .patt = a->patt,
+                .on_end = anim_add_preview,
+            })
+        });
+    }
 }
 
 void falling_blocks_update(f32 dt, i32 frame)
@@ -471,8 +481,8 @@ void falling_blocks_update(f32 dt, i32 frame)
 
                 // add a falling animation for the matched pattern
                 Vector2 init_pos = Vector2Add(GRID_POS, Vector2Scale(as_vec2(min), GRID_CELL_SIDE));
-                printf("%g %g\n", init_pos.x, init_pos.y);
                 apool_add((Animation) {
+                    .type = 1,
                     .anim_update = generic_movement_animation,
                     .cur_frame = 0,
                     .data = movement_anim_dup(&(MovementAnim) {
@@ -487,6 +497,7 @@ void falling_blocks_update(f32 dt, i32 frame)
 
                 // add score animation
                 apool_add((Animation) {
+                    .type = 0,
                     .anim_update = animate_score,
                     .cur_frame = 0,
                     .data = matchdup(&(MatchInfo) {

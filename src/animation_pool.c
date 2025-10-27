@@ -19,7 +19,7 @@ void apool_add(Animation anim)
 
 void apool_update(f32 dt)
 {
-    for (i32 i = 0; i < pool.size; i++) {
+    for (ptrdiff_t i = 0; i < pool.size; i++) {
         if (pool.data[i].anim_update(pool.data[i].data, dt, pool.data[i].cur_frame++)) {
             anim_pool_remove_i(&pool, i);
             i--;
@@ -29,8 +29,19 @@ void apool_update(f32 dt)
 
 void apool_free()
 {
-    for (i32 i = 0; i < pool.size; i++) {
+    for (ptrdiff_t i = 0; i < pool.size; i++) {
         free(pool.data[i].data);
     }
     anim_pool_free(&pool);
+}
+
+ptrdiff_t apool_find_type_count(int type)
+{
+    ptrdiff_t count = 0;
+    for (ptrdiff_t i = 0; i < pool.size; i++) {
+        if (pool.data[i].type == type) {
+            count++;
+        }
+    }
+    return count;
 }
