@@ -134,6 +134,22 @@ int raylib_key_to_input_key(KeyboardKey key)
          : 0;
 }
 
+// setup for various pattern animations
+typedef struct MovementAnim {
+    Vector2 init_pos;
+    Vector2 end_pos;
+    Vector2 vel;
+    Vector2 accel;
+    Pattern patt;
+    void (*on_end)(struct MovementAnim *);
+} MovementAnim;
+
+DEFINE_DUP_FN(MovementAnim, movement_anim)
+
+bool generic_movement_animation(void *context, f32 dt, i32 frameno);
+
+// grid related functions
+
 iVec2 convert_base_pos(Vector2 p)
 {
     return IVEC2(p.x / 16.f, p.y / 16.f);
@@ -383,7 +399,39 @@ void volume_update(i32 frame)
     }
 }
 
-bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno);
+Rectangle find_preview_box()
+{
+    return preview1box;
+}
+
+void anim_add_preview(MovementAnim *a)
+{
+    pattbuf_enqueue(&pattern_buffer, a->patt);
+}
+
+void anim_begin_enter_preview(MovementAnim *a)
+{
+    Rectangle box = find_preview_box();
+    iVec2 max = pattern_max(&a->patt);
+    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+    Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                            box.y + box.height);
+    Vector2 end_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                           box.y + floorf((box.height - patt_size.y) / 2.f));
+
+    apool_add((Animation) {
+        .anim_update = generic_movement_animation,
+        .cur_frame = 0,
+        .data = movement_anim_dup(&(MovementAnim) {
+            .init_pos = init_pos,
+            .end_pos = end_pos,
+            .vel = vec2(0, -1),
+            .accel = vec2(0, 0),
+            .patt = a->patt,
+            .on_end = anim_add_preview,
+        })
+    });
+}
 
 void falling_blocks_update(f32 dt, i32 frame)
 {
@@ -422,13 +470,19 @@ void falling_blocks_update(f32 dt, i32 frame)
                 pattern_normalize(&out);
 
                 // add a falling animation for the matched pattern
+                Vector2 init_pos = Vector2Add(GRID_POS, Vector2Scale(as_vec2(min), GRID_CELL_SIDE));
+                printf("%g %g\n", init_pos.x, init_pos.y);
                 apool_add((Animation) {
-                    .anim_update = animate_matched_pattern_fall,
+                    .anim_update = generic_movement_animation,
                     .cur_frame = 0,
-                    .data = piece_dup(&(Piece) {
-                        .pos = Vector2Scale(as_vec2(min), GRID_CELL_SIDE),
-                        .p = out,
-                    }),
+                    .data = movement_anim_dup(&(MovementAnim) {
+                        .init_pos = init_pos,
+                        .end_pos = vec2(init_pos.x, GRID_POS.y + GRID_HEIGHT * GRID_CELL_SIDE),
+                        .vel = vec2(0, -2.f),
+                        .accel = vec2(0, 0.1f),
+                        .patt = out,
+                        .on_end = anim_begin_enter_preview,
+                    })
                 });
 
                 // add score animation
@@ -544,77 +598,35 @@ void draw_preview(size_t n, Rectangle box, Texture2D bg, i32 frame)
     }
 }
 
-f32 second_motion_equation(f32 t, f32 s0, f32 v0, f32 a)
+Vector2 second_motion_equation(f32 t, Vector2 s0, Vector2 v0, Vector2 a)
 {
-    return s0 + v0 * t + 0.5f * a * powf(t, 2);
+    return Vector2Add(Vector2Add(s0, Vector2Scale(v0, t)), Vector2Scale(a, 0.5f * t * t));
 }
 
-typedef struct {
-    Vector2 init_pos;
-    Vector2 end_pos;
-    Pattern p;
-} MovementAnim;
-
-DEFINE_DUP_FN(MovementAnim, movement_anim)
-
-bool animate_enter_preview(void *context, f32 dt, i32 frameno);
-
-Rectangle find_preview()
+static bool collision_line_point(Vector2 start, Vector2 end, Vector2 p)
 {
-    return preview1box;
+    float len = Vector2Length(Vector2Subtract(start, end));
+    float d1 = Vector2Length(Vector2Subtract(p, start));
+    float d2 = Vector2Length(Vector2Subtract(p, end));
+    const float buffer = 0.1;
+    return d1 + d2 >= len - buffer
+        && d1 + d2 <= len + buffer;
 }
 
-bool animate_matched_pattern_fall(void *context, f32 dt, i32 frameno)
-{
-    Piece *p = (Piece *) context;
-    Vector2 base_pos = Vector2Add(GRID_POS, p->pos);
-    base_pos.y = second_motion_equation(frameno, base_pos.y, -2.f, 0.1f);
-    if (base_pos.y > GRID_POS.y + GRID_HEIGHT * GRID_CELL_SIDE) {
-        Rectangle box = find_preview();
-        iVec2 max = pattern_max(&p->p);
-        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-        Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                                box.y + box.height);
-        Vector2 end_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                               box.y + floorf((box.height - patt_size.y) / 2.f));
-
-        apool_add((Animation) {
-            .anim_update = animate_enter_preview,
-            .cur_frame = 0,
-            .data = movement_anim_dup(&(MovementAnim) {
-                .init_pos = init_pos,
-                .end_pos = end_pos,
-                .p = p->p,
-            })
-        });
-        free(p);
-        return true;
-    }
-
-    for (i32 i = 0; i < p->p.count; i++) {
-        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(p->p.coords[i]), GRID_CELL_SIDE));
-        draw_block(pos, p->p.color[i], 0);
-    }
-
-    return false;
-}
-
-bool animate_enter_preview(void *context, f32 dt, i32 frameno)
+bool generic_movement_animation(void *context, f32 dt, i32 frameno)
 {
     MovementAnim *p = (MovementAnim *) context;
 
-    f32 t = frameno / 16.f;
-    Vector2 base_pos = t >= 1.f ? p->end_pos
-                                : vec2(lerp(p->init_pos.x, p->end_pos.x, t),
-                                       lerp(p->init_pos.y, p->end_pos.y, t));
+    Vector2 patt_pos_before = second_motion_equation(frameno-1, p->init_pos, p->vel, p->accel);
+    Vector2 patt_pos        = second_motion_equation(frameno, p->init_pos, p->vel, p->accel);
 
-    for (i32 i = 0; i < p->p.count; i++) {
-        Vector2 pos = Vector2Add(base_pos, Vector2Scale(as_vec2(p->p.coords[i]), GRID_CELL_SIDE));
-        draw_block(pos, p->p.color[i], 0);
+    for (i32 i = 0; i < p->patt.count; i++) {
+        Vector2 block_pos = Vector2Add(patt_pos, Vector2Scale(as_vec2(p->patt.coords[i]), GRID_CELL_SIDE));
+        draw_block(block_pos, p->patt.color[i], 0);
     }
 
-    if (t >= 1.f) {
-        pattbuf_enqueue(&pattern_buffer, p->p);
+    if (collision_line_point(patt_pos_before, patt_pos, p->end_pos)) {
+        p->on_end(p);
         free(p);
         return true;
     }
