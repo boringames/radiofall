@@ -12,7 +12,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
-static const i32 SCALE = 1;
+static const i32 SCALE = 3;
 
 static bool window_should_close = false;
 static bool on_transition = false;

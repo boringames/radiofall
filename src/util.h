@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <raylib.h>
+#include <raymath.h>
 #include <inttypes.h>
 
 typedef float    f32;
@@ -85,4 +86,19 @@ type *name##_dup(type *a) \
     memcpy(b, a, sizeof(*a)); \
     return b; \
 } \
+
+static inline Vector2 second_motion_equation(f32 t, Vector2 s0, Vector2 v0, Vector2 a)
+{
+    return Vector2Add(Vector2Add(s0, Vector2Scale(v0, t)), Vector2Scale(a, 0.5f * t * t));
+}
+
+static inline bool collision_line_point(Vector2 start, Vector2 end, Vector2 p)
+{
+    float len = Vector2Length(Vector2Subtract(start, end));
+    float d1 = Vector2Length(Vector2Subtract(p, start));
+    float d2 = Vector2Length(Vector2Subtract(p, end));
+    const float buffer = 0.1;
+    return d1 + d2 >= len - buffer
+        && d1 + d2 <= len + buffer;
+}
 

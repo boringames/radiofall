@@ -31,9 +31,6 @@ static const Vector2 GRID_POS = {96, 16};
 // contains matched patterns, queued up to be placed at the top
 PatternBuffer pattern_buffer;
 
-const Rectangle preview1box = (Rectangle) { 7,  28, 68, 47 };
-const Rectangle preview2box = (Rectangle) { 8, 165, 64, 65 };
-
 // when a new pattern is needed, it is copied here
 struct {
     Vector2 pos;
@@ -97,8 +94,7 @@ enum {
 
 Texture2D field_ui;
 Texture2D field_ui_bg;
-Texture2D preview1;
-Texture2D preview2;
+Texture2D preview_bg;
 Texture2D blocks;
 Texture2D volume_img;
 
@@ -210,15 +206,23 @@ static PatternVector grid_sweep() {
     return matched_patterns;
 }
 
-Vector2 pattern_pos_for_preview(Rectangle box, Pattern *p)
-{
-    iVec2 max = pattern_max(p);
-    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-    return vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                box.y + floorf((box.height - patt_size.y) / 2.f));
-}
+typedef struct Preview {
+    Rectangle box;
+    Pattern patt;
+    Vector2 pos;
+    Vector2 end_pos;
+    Vector2 vel;
+    i32 state;
+} Preview;
 
-void anim_preview_exit(MovementAnim *a)
+Preview preview = {
+    .box = (Rectangle) { 8, 165, 64, 65 },
+    .pos = (Vector2) {0},
+    .vel = (Vector2) {0},
+    .state = 0,
+};
+
+static void real_init_cur_piece()
 {
     i32 x = pattern_max(&cur_piece.patt).x + 1;
     cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
@@ -233,43 +237,59 @@ void anim_preview_exit(MovementAnim *a)
     state_timer = 0;
 }
 
+void preview_update(Preview *preview)
+{
+    switch (preview->state) {
+    case 0:
+        if (pattbuf_dequeue(&pattern_buffer, &preview->patt)) {
+            for (i32 i = 0; i < cur_piece.patt.count; i++) {
+                preview->patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
+            }
+            iVec2 max = pattern_max(&preview->patt);
+            Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+            preview->end_pos = vec2(preview->box.x + floorf((preview->box.width  - patt_size.x) / 2.f),
+                                    preview->box.y + floorf((preview->box.height - patt_size.y) / 2.f));
+            preview->pos = vec2(preview->end_pos.x, preview->box.y + preview->box.height);
+            preview->vel = vec2(0, -1);
+            preview->state = 1;
+        }
+        break;
+    case 1: {
+        Vector2 newpos = Vector2Add(preview->pos, preview->vel);
+        if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
+            preview->pos = preview->end_pos;
+            preview->state = 2;
+        } else {
+            preview->pos = newpos;
+        }
+        break;
+    }
+    case 2:
+        break;
+    case 3:
+        Vector2 newpos = Vector2Add(preview->pos, preview->vel);
+        if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
+            cur_piece.patt = preview->patt;
+            real_init_cur_piece();
+            preview->state = 0;
+        } else {
+            preview->pos = newpos;
+        }
+    }
+}
+
 static void init_cur_piece()
 {
-    if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
+    if (preview.state != 2) {
         pattern_generate(&cur_piece.patt);
-        i32 x = pattern_max(&cur_piece.patt).x + 1;
-        cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
-        cur_piece.rotation.playing = false;
-
-        if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
-            cur_state = STATE_GAMEOVER;
-        }
-
-        cur_piece.falling = true;
-
-        state_timer = 0;
+        real_init_cur_piece();
     } else {
-        Rectangle box = preview1box;
-        Pattern *p = &cur_piece.patt;
-        iVec2 max = pattern_max(p);
-        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-        Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
-                                box.y + floorf((box.height - patt_size.y) / 2.f));
-        Vector2 end_pos  = vec2(init_pos.x, box.y - patt_size.y);
-
-        apool_add((Animation) {
-            .type = 3,
-            .anim_update = generic_movement_animation,
-            .cur_frame = 0,
-            .data = movement_anim_dup(&(MovementAnim) {
-                .init_pos = init_pos,
-                .end_pos  = end_pos,
-                .vel      = vec2(0, -1),
-                .accel    = vec2(0, 0),
-                .patt     = cur_piece.patt,
-                .on_end   = anim_preview_exit,
-            }),
-        });
+        preview.state = 3;
+        preview.vel = vec2(0, -1);
+        Vector2 patt_size = pattern_size(&preview.patt, GRID_CELL_SIDE);
+        Vector2 patt_pos = vec2(preview.box.x + floorf((preview.box.width - patt_size.x) / 2.f),
+                                preview.box.y + floorf((preview.box.height - patt_size.y) / 2.f));
+        preview.end_pos = vec2(patt_pos.x, preview.box.y - patt_size.y);
     }
 }
 
@@ -293,8 +313,7 @@ void game_load()
 {
     field_ui = load_texture("resources/ui.png");
     field_ui_bg = load_texture("resources/ui_bg.png");
-    preview1 = load_texture("resources/ui_preview1.png");
-    preview2 = load_texture("resources/ui_preview2.png");
+    preview_ = load_texture("resources/ui_preview2.png");
     blocks = load_texture("resources/blocks.png");
     volume_img = load_texture("resources/volume.png");
 
@@ -309,8 +328,7 @@ void game_unload()
 {
     UnloadTexture(field_ui);
     UnloadTexture(field_ui_bg);
-    UnloadTexture(preview1);
-    UnloadTexture(preview2);
+    UnloadTexture(preview_bg);
     UnloadTexture(blocks);
     UnloadTexture(volume_img);
 
@@ -437,52 +455,9 @@ void volume_update(i32 frame)
     }
 }
 
-bool find_preview_box(Rectangle *r)
-{
-    size_t size = pattbuf_size(&pattern_buffer);
-    ptrdiff_t num_anims = apool_find_type_count(2);
-    if (size == 0 && num_anims == 0) {
-        *r = preview1box;
-        return true;
-    } else if (size == 1 && num_anims <= 1) {
-        *r = preview2box;
-        return true;
-    }
-    return false;
-}
-
-void anim_add_preview(MovementAnim *a)
-{
-    pattbuf_enqueue(&pattern_buffer, a->patt);
-}
-
 void anim_begin_enter_preview(MovementAnim *a)
 {
-    for (i32 i = 0; i < cur_piece.patt.count; i++) {
-        a->patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
-    }
-
-    Rectangle box;
-    if (find_preview_box(&box)) {
-        Vector2 end_pos = pattern_pos_for_preview(box, &a->patt);
-        Vector2 init_pos = vec2(end_pos.x, box.y + box.height);
-
-        apool_add((Animation) {
-            .type = 2,
-            .anim_update = generic_movement_animation,
-            .cur_frame = 0,
-            .data = movement_anim_dup(&(MovementAnim) {
-                .init_pos = init_pos,
-                .end_pos = end_pos,
-                .vel = vec2(0, -1),
-                .accel = vec2(0, 0),
-                .patt = a->patt,
-                .on_end = anim_add_preview,
-            })
-        });
-    } else {
-        pattbuf_enqueue(&pattern_buffer, a->patt);
-    }
+    pattbuf_enqueue(&pattern_buffer, a->patt);
 }
 
 void falling_blocks_update(f32 dt, i32 frame)
@@ -578,6 +553,7 @@ void game_update(f32 dt, i32 frame) {
         falling_piece_update(frame);
         volume_update(frame);
         falling_blocks_update(dt, frame);
+        preview_update(&preview);
         break;
     case STATE_GAMEOVER:
         if (IsKeyDown(KEY_ENTER) || IsKeyDown(KEY_Z)) {
@@ -603,20 +579,18 @@ void draw_block(Vector2 pos, GridColor color, i32 frame)
     );
 }
 
-void draw_preview(size_t n, Rectangle box, Texture2D bg, i32 frame)
+void draw_preview(Preview *preview, Texture2D bg, i32 frame)
 {
-    Vector2 where = vec2(box.x, box.y);
-    Vector2 box_size = vec2(box.width, box.height);
+    Vector2 where = vec2(preview->box.x, preview->box.y);
+    Vector2 box_size = vec2(preview->box.width, preview->box.height);
     i32 bg_frame = ((frame / 8) % 2) * box_size.x;
     DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
-    if (pattbuf_size(&pattern_buffer) <= n)
+    if (preview->state == 0) {
         return;
+    }
 
-    Pattern *p = pattbuf_peek(&pattern_buffer, n);
-    iVec2 max = pattern_max(p);
-    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-    Vector2 base_pos = vec2(where.x + floorf((box_size.x - patt_size.x) * 0.5f),
-                            where.y + floorf((box_size.y - patt_size.y) * 0.5f));
+    Pattern *p = &preview->patt;
+    Vector2 base_pos = preview->pos;
 
     /*
     f32 scale = 1.0f;
@@ -636,7 +610,6 @@ void draw_preview(size_t n, Rectangle box, Texture2D bg, i32 frame)
 
     for (i32 i = 0; i < p->count; i++) {
         Vector2 pos = Vector2Scale(as_vec2(p->coords[i]), GRID_CELL_SIDE);
-
         draw_block(Vector2Add(base_pos, pos), p->color[i], 0);
         /*
         const GridColor color = p->color[i];
@@ -649,21 +622,6 @@ void draw_preview(size_t n, Rectangle box, Texture2D bg, i32 frame)
         );
         */
     }
-}
-
-Vector2 second_motion_equation(f32 t, Vector2 s0, Vector2 v0, Vector2 a)
-{
-    return Vector2Add(Vector2Add(s0, Vector2Scale(v0, t)), Vector2Scale(a, 0.5f * t * t));
-}
-
-static bool collision_line_point(Vector2 start, Vector2 end, Vector2 p)
-{
-    float len = Vector2Length(Vector2Subtract(start, end));
-    float d1 = Vector2Length(Vector2Subtract(p, start));
-    float d2 = Vector2Length(Vector2Subtract(p, end));
-    const float buffer = 0.1;
-    return d1 + d2 >= len - buffer
-        && d1 + d2 <= len + buffer;
 }
 
 bool generic_movement_animation(void *context, f32 dt, i32 frameno)
@@ -695,8 +653,7 @@ void game_draw(f32 dt, i32 frame) {
     DrawTextureRec(field_ui_bg, rec(vec2(bg_frame, 0), vec2(128, 208)), GRID_POS, WHITE);
 
     // previews
-    draw_preview(0, preview1box, preview1, frame);
-    draw_preview(1, preview2box, preview2, frame);
+    draw_preview(&preview, preview_bg, frame);
 
     // current piece
     i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];

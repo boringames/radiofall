@@ -23,6 +23,5 @@ void pattern_generate(Pattern *p);
 iVec2 pattern_min(Pattern *p);
 iVec2 pattern_max(Pattern *p);
 iVec2 pattern_origin(Pattern *p);
+Vector2 pattern_size(Pattern *p, float block_size);
 Pattern *pattern_dup(Pattern *p);
-i32 pattern_width(Pattern *p);
-i32 pattern_height(Pattern *p);
