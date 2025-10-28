@@ -31,9 +31,6 @@ static const Vector2 GRID_POS = {96, 16};
 // contains matched patterns, queued up to be placed at the top
 PatternBuffer pattern_buffer;
 
-RenderTexture2D preview1_render_texture;
-RenderTexture2D preview2_render_texture;
-
 const Rectangle preview1box = (Rectangle) { 7,  28, 68, 47 };
 const Rectangle preview2box = (Rectangle) { 8, 165, 64, 65 };
 
@@ -213,15 +210,16 @@ static PatternVector grid_sweep() {
     return matched_patterns;
 }
 
-static void init_cur_piece()
+Vector2 pattern_pos_for_preview(Rectangle box, Pattern *p)
 {
-    if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
-        pattern_generate(&cur_piece.patt);
-    } else {
-        for (i32 i = 0; i < cur_piece.patt.count; i++) {
-            cur_piece.patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
-        }
-    }
+    iVec2 max = pattern_max(p);
+    Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+    return vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                box.y + floorf((box.height - patt_size.y) / 2.f));
+}
+
+void anim_preview_exit(MovementAnim *a)
+{
     i32 x = pattern_max(&cur_piece.patt).x + 1;
     cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
     cur_piece.rotation.playing = false;
@@ -233,6 +231,46 @@ static void init_cur_piece()
     cur_piece.falling = true;
 
     state_timer = 0;
+}
+
+static void init_cur_piece()
+{
+    if (!pattbuf_dequeue(&pattern_buffer, &cur_piece.patt)) {
+        pattern_generate(&cur_piece.patt);
+        i32 x = pattern_max(&cur_piece.patt).x + 1;
+        cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
+        cur_piece.rotation.playing = false;
+
+        if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
+            cur_state = STATE_GAMEOVER;
+        }
+
+        cur_piece.falling = true;
+
+        state_timer = 0;
+    } else {
+        Rectangle box = preview1box;
+        Pattern *p = &cur_piece.patt;
+        iVec2 max = pattern_max(p);
+        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
+        Vector2 init_pos = vec2(box.x + floorf((box.width  - patt_size.x) / 2.f),
+                                box.y + floorf((box.height - patt_size.y) / 2.f));
+        Vector2 end_pos  = vec2(init_pos.x, box.y - patt_size.y);
+
+        apool_add((Animation) {
+            .type = 3,
+            .anim_update = generic_movement_animation,
+            .cur_frame = 0,
+            .data = movement_anim_dup(&(MovementAnim) {
+                .init_pos = init_pos,
+                .end_pos  = end_pos,
+                .vel      = vec2(0, -1),
+                .accel    = vec2(0, 0),
+                .patt     = cur_piece.patt,
+                .on_end   = anim_preview_exit,
+            }),
+        });
+    }
 }
 
 static bool is_pos_y_less(FallingList *p, void *pos)
@@ -401,11 +439,12 @@ void volume_update(i32 frame)
 
 bool find_preview_box(Rectangle *r)
 {
+    size_t size = pattbuf_size(&pattern_buffer);
     ptrdiff_t num_anims = apool_find_type_count(2);
-    if (num_anims == 0) {
+    if (size == 0 && num_anims == 0) {
         *r = preview1box;
         return true;
-    } else if (num_anims == 1) {
+    } else if (size == 1 && num_anims <= 1) {
         *r = preview2box;
         return true;
     }
@@ -419,13 +458,14 @@ void anim_add_preview(MovementAnim *a)
 
 void anim_begin_enter_preview(MovementAnim *a)
 {
+    for (i32 i = 0; i < cur_piece.patt.count; i++) {
+        a->patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
+    }
+
     Rectangle box;
     if (find_preview_box(&box)) {
-        iVec2 max = pattern_max(&a->patt);
-        Vector2 patt_size = Vector2Scale(vec2(max.x + 1, max.y + 1), GRID_CELL_SIDE);
-        float x = box.x + floorf((box.width  - patt_size.x) / 2.f);
-        Vector2 init_pos = vec2(x, box.y + box.height);
-        Vector2 end_pos  = vec2(x, box.y + floorf((box.height - patt_size.y) / 2.f));
+        Vector2 end_pos = pattern_pos_for_preview(box, &a->patt);
+        Vector2 init_pos = vec2(end_pos.x, box.y + box.height);
 
         apool_add((Animation) {
             .type = 2,
@@ -440,6 +480,8 @@ void anim_begin_enter_preview(MovementAnim *a)
                 .on_end = anim_add_preview,
             })
         });
+    } else {
+        pattbuf_enqueue(&pattern_buffer, a->patt);
     }
 }
 
