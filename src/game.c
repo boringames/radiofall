@@ -33,6 +33,7 @@ PatternBuffer pattern_buffer;
 
 // when a new pattern is needed, it is copied here
 struct {
+    bool falling;
     Vector2 pos;
     Pattern patt;
     // when the player inputs a rotation, it takes a few frames to complete
@@ -42,8 +43,9 @@ struct {
         bool playing;
         float init_timer;
     } rotation;
-    bool falling;
 } cur_piece;
+
+float falling_speed; // not really a speed but w/e
 
 #define ROTATION_TIME 0.2f
 
@@ -115,17 +117,17 @@ i32 volume_cooldown = 0;
 // key input buffers
 // we check input for these keys each frame, but their action
 // is delayed by a few frames so that they're slowed down
-#define INPUT_LEFT 0
-#define INPUT_RIGHT 1
+// #define INPUT_LEFT 0
+// #define INPUT_RIGHT 1
 
-bool input_buffers[2] = {0};
+// bool input_buffers[2] = {0};
 
-int raylib_key_to_input_key(KeyboardKey key)
-{
-    return key == KEY_LEFT  ? INPUT_LEFT
-         : key == KEY_RIGHT ? INPUT_RIGHT
-         : 0;
-}
+// int raylib_key_to_input_key(KeyboardKey key)
+// {
+//     return key == KEY_LEFT  ? INPUT_LEFT
+//          : key == KEY_RIGHT ? INPUT_RIGHT
+//          : 0;
+// }
 
 // setup for various pattern animations
 typedef struct MovementAnim {
@@ -222,10 +224,12 @@ Preview preview = {
     .state = 0,
 };
 
-#define PREVIEW_VEL -50.f
+#define PREVIEW_VEL -100.f
 
-#define FALLING_ANIM_VEL -80.f
-#define FALLING_ANIM_ACCEL 150.f
+#define FALLING_ANIM_VEL -100.f
+#define FALLING_ANIM_ACCEL 200.f
+
+#define SPEED_CHANGE 8
 
 static void real_init_cur_piece()
 {
@@ -342,6 +346,7 @@ void game_unload()
 
 void game_enter() {
     cur_state = STATE_RUNNING;
+    falling_speed = 0.8f;
 
     for (i32 y = 0; y < GRID_HEIGHT; y++)
         for (i32 x = 0; x < GRID_WIDTH; x++)
@@ -370,16 +375,13 @@ bool animate_score(void *context, f32 dt, f32 init_time) {
     return false;
 }
 
-bool is_key_down(KeyboardKey key)
-{
-    int k = raylib_key_to_input_key(key);
-    if (fmodf(GetTime(), 0.2) <= 0.016) {
-        bool down = input_buffers[k];
-        input_buffers[k] = false;
-        return down;
-    }
-    return false;
-}
+// bool is_key_down(KeyboardKey key)
+// {
+//     int k = raylib_key_to_input_key(key);
+//     bool down = input_buffers[k];
+//     input_buffers[k] = false;
+//     return down;
+// }
 
 static bool is_hovering(i32 x, i32 base_y)
 {
@@ -416,18 +418,20 @@ void falling_piece_update()
         }
     }
 
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
-        input_buffers[INPUT_LEFT] = true;
-    }
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
-        input_buffers[INPUT_RIGHT] = true;
-    }
+    bool left = IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT);
+        // input_buffers[INPUT_LEFT] = true;
+    // }
+    bool right = IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT);
+        // input_buffers[INPUT_RIGHT] = true;
+    // }
 
-    i32 xdir = (-is_key_down(KEY_LEFT) + is_key_down(KEY_RIGHT)) * 16;
+    // i32 xdir = (-is_key_down(KEY_LEFT) + is_key_down(KEY_RIGHT)) * 16;
+    i32 xdir = (-left + right) * 16;
     if (!is_valid_pattern_pos(Vector2Add(cur_piece.pos, vec2(xdir, 0)), &cur_piece.patt)) {
         xdir = 0;
     }
-    i32 ydir = (fmodf(GetTime(), 0.8) <= 0.016) * 4 + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
+    i32 ydir = (fmodf(GetTime(), falling_speed) <= 0.016) * 4
+             + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
     cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
         cur_piece.pos.y = floorf(cur_piece.pos.y / 16.f) * 16.f;
@@ -526,8 +530,14 @@ void falling_blocks_update(f32 dt)
                     })
                 });
             }
+
             score += local_score * matched_count;
+
+            i32 old_total_matched = total_matched;
             total_matched += matched_count;
+            if (old_total_matched / SPEED_CHANGE < total_matched / SPEED_CHANGE) {
+                falling_speed /= 2;
+            }
 
             for (i32 y = 0; y < GRID_HEIGHT; y++) {
                 for (i32 x = 0; x < GRID_WIDTH; x++) {
@@ -720,6 +730,7 @@ void game_draw(f32 dt, i32 frame) {
         vec2(0, 0), 0, WHITE
     );
 
+    // game over menu
     if (cur_state == STATE_GAMEOVER) {
         draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
         draw_text_centered("[Z] or [ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
