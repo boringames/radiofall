@@ -97,6 +97,7 @@ enum {
 Texture2D field_ui;
 Texture2D field_ui_bg;
 Texture2D preview_bg;
+Texture2D preview_color_icons;
 Texture2D blocks;
 Texture2D volume_img;
 
@@ -316,6 +317,7 @@ void game_load()
     field_ui = load_texture("resources/ui.png");
     field_ui_bg = load_texture("resources/ui_bg.png");
     preview_bg = load_texture("resources/ui_preview2.png");
+    preview_color_icons = load_texture("resources/color-icons.png");
     blocks = load_texture("resources/blocks.png");
     volume_img = load_texture("resources/volume.png");
 
@@ -691,6 +693,18 @@ void game_draw(f32 dt, i32 frame) {
 
     // foreground
     DrawTexture(field_ui, 0, 0, WHITE);
+
+    // preview icons
+    if (preview.state != 0) {
+        for (i32 i = 0; i < preview.patt.count; i++) {
+            GridColor color = preview.patt.color[i];
+            DrawTextureRec(preview_color_icons,
+                rec(vec2(color * 2, 0), vec2(2, 2)),
+                vec2(15 + i * 6, 236),
+                WHITE
+            );
+        }
+    }
 
     // score
     draw_text_centered(TextFormat("%d", score),         vec2(280, 34), 2, WHITE, GetFontDefault(), 12, 1);
