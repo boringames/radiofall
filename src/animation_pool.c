@@ -20,7 +20,7 @@ void apool_add(Animation anim)
 void apool_update(f32 dt)
 {
     for (ptrdiff_t i = 0; i < pool.size; i++) {
-        if (pool.data[i].anim_update(pool.data[i].data, dt, pool.data[i].cur_frame++)) {
+        if (pool.data[i].anim_update(pool.data[i].data, dt, pool.data[i].time)) {
             anim_pool_remove_i(&pool, i);
             i--;
         }

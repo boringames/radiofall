@@ -40,10 +40,12 @@ struct {
     struct {
         Pattern pattern;
         bool playing;
-        i32 init_timer;
+        float init_timer;
     } rotation;
     bool falling;
 } cur_piece;
+
+#define ROTATION_TIME 0.2f
 
 i32 score = 0;
 i32 total_matched = 0;
@@ -104,9 +106,6 @@ Sound rotate_sfx;
 // true when the player has just positioned a piece
 bool block_down = false;
 
-// timer for each state; resets to zero on a state change
-i32 state_timer = 0;
-
 #define COOLDOWN_MAX 20
 
 // volume indicator. counts up, when it gets to COOLDOWN_MAX the game is over
@@ -139,7 +138,7 @@ typedef struct MovementAnim {
 
 DEFINE_DUP_FN(MovementAnim, movement_anim)
 
-bool generic_movement_animation(void *context, f32 dt, i32 frameno);
+bool generic_movement_animation(void *context, f32 dt, f32 init_time);
 
 // grid related functions
 
@@ -222,6 +221,11 @@ Preview preview = {
     .state = 0,
 };
 
+#define PREVIEW_VEL -50.f
+
+#define FALLING_ANIM_VEL -80.f
+#define FALLING_ANIM_ACCEL 150.f
+
 static void real_init_cur_piece()
 {
     i32 x = pattern_max(&cur_piece.patt).x + 1;
@@ -233,11 +237,9 @@ static void real_init_cur_piece()
     }
 
     cur_piece.falling = true;
-
-    state_timer = 0;
 }
 
-void preview_update(Preview *preview)
+void preview_update(Preview *preview, f32 dt)
 {
     switch (preview->state) {
     case 0:
@@ -250,12 +252,12 @@ void preview_update(Preview *preview)
             preview->end_pos = vec2(preview->box.x + floorf((preview->box.width  - patt_size.x) / 2.f),
                                     preview->box.y + floorf((preview->box.height - patt_size.y) / 2.f));
             preview->pos = vec2(preview->end_pos.x, preview->box.y + preview->box.height);
-            preview->vel = vec2(0, -1);
+            preview->vel = vec2(0, PREVIEW_VEL);
             preview->state = 1;
         }
         break;
     case 1: {
-        Vector2 newpos = Vector2Add(preview->pos, preview->vel);
+        Vector2 newpos = Vector2Add(preview->pos, Vector2Scale(preview->vel, dt));
         if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
             preview->pos = preview->end_pos;
             preview->state = 2;
@@ -267,7 +269,7 @@ void preview_update(Preview *preview)
     case 2:
         break;
     case 3:
-        Vector2 newpos = Vector2Add(preview->pos, preview->vel);
+        Vector2 newpos = Vector2Add(preview->pos, Vector2Scale(preview->vel, dt));
         if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
             cur_piece.patt = preview->patt;
             real_init_cur_piece();
@@ -285,7 +287,7 @@ static void init_cur_piece()
         real_init_cur_piece();
     } else {
         preview.state = 3;
-        preview.vel = vec2(0, -1);
+        preview.vel = vec2(0, PREVIEW_VEL);
         Vector2 patt_size = pattern_size(&preview.patt, GRID_CELL_SIDE);
         Vector2 patt_pos = vec2(preview.box.x + floorf((preview.box.width - patt_size.x) / 2.f),
                                 preview.box.y + floorf((preview.box.height - patt_size.y) / 2.f));
@@ -313,7 +315,7 @@ void game_load()
 {
     field_ui = load_texture("resources/ui.png");
     field_ui_bg = load_texture("resources/ui_bg.png");
-    preview_ = load_texture("resources/ui_preview2.png");
+    preview_bg = load_texture("resources/ui_preview2.png");
     blocks = load_texture("resources/blocks.png");
     volume_img = load_texture("resources/volume.png");
 
@@ -348,28 +350,28 @@ void game_enter() {
     score = 0;
     volume_cooldown = 0;
     total_matched = 0;
-    state_timer = 0;
     init_cur_piece();
     cur_state = STATE_RUNNING;
 }
 
-bool animate_score(void *context, f32 dt, i32 frameno) {
+bool animate_score(void *context, f32 dt, f32 init_time) {
+    f32 time = GetTime() - init_time;
     MatchInfo *m = (MatchInfo *)(context);
     DrawText(TextFormat("+%d", m->pcount),
-            (m->pos.x * GRID_CELL_SIDE) + GRID_POS.x + cos(frameno) ,
-            (m->pos.y * GRID_CELL_SIDE) + GRID_POS.y + sin(frameno),
+            (m->pos.x * GRID_CELL_SIDE) + GRID_POS.x + cos(time) ,
+            (m->pos.y * GRID_CELL_SIDE) + GRID_POS.y + sin(time),
             12, WHITE);
-    if (frameno == 128) {
+    if (time >= 2.0f) {
         free(m);
         return true;
     }
     return false;
 }
 
-bool is_key_down(KeyboardKey key, i32 timer, i32 time)
+bool is_key_down(KeyboardKey key)
 {
     int k = raylib_key_to_input_key(key);
-    if (timer % time == 0) {
+    if (fmodf(GetTime(), 0.2) <= 0.016) {
         bool down = input_buffers[k];
         input_buffers[k] = false;
         return down;
@@ -387,7 +389,7 @@ static bool is_hovering(i32 x, i32 base_y)
     return false;
 }
 
-void falling_piece_update(i32 frame)
+void falling_piece_update()
 {
     if (!cur_piece.falling) {
         return;
@@ -398,7 +400,7 @@ void falling_piece_update(i32 frame)
     }
 
     if (cur_piece.rotation.playing) {
-        if (state_timer - cur_piece.rotation.init_timer >= 8) {
+        if (GetTime() - cur_piece.rotation.init_timer >= ROTATION_TIME) {
             memcpy(&cur_piece.patt, &cur_piece.rotation.pattern, sizeof(Pattern));
             cur_piece.rotation.playing = false;
         }
@@ -408,7 +410,7 @@ void falling_piece_update(i32 frame)
         pattern_rotate(&cur_piece.rotation.pattern, IsKeyPressed(KEY_Z));
         if (is_valid_pattern_pos(cur_piece.pos, &cur_piece.rotation.pattern)) {
             cur_piece.rotation.playing = true;
-            cur_piece.rotation.init_timer = state_timer;
+            cur_piece.rotation.init_timer = GetTime();
         }
     }
 
@@ -419,11 +421,11 @@ void falling_piece_update(i32 frame)
         input_buffers[INPUT_RIGHT] = true;
     }
 
-    i32 xdir = (-is_key_down(KEY_LEFT, state_timer, 4) + is_key_down(KEY_RIGHT, state_timer, 4)) * 16;
+    i32 xdir = (-is_key_down(KEY_LEFT) + is_key_down(KEY_RIGHT)) * 16;
     if (!is_valid_pattern_pos(Vector2Add(cur_piece.pos, vec2(xdir, 0)), &cur_piece.patt)) {
         xdir = 0;
     }
-    i32 ydir = (state_timer % 16 == 0) * 4 + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
+    i32 ydir = (fmodf(GetTime(), 0.8) <= 0.016) * 4 + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
     cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
     if (!is_valid_pattern_pos(cur_piece.pos, &cur_piece.patt)) {
         cur_piece.pos.y = floorf(cur_piece.pos.y / 16.f) * 16.f;
@@ -439,14 +441,13 @@ void falling_piece_update(i32 frame)
         cur_piece.rotation.playing = false;
         cur_piece.falling = false;
         block_down = true;
-        state_timer = 0;
         return;
     }
 }
 
-void volume_update(i32 frame)
+void volume_update()
 {
-    if (cur_piece.falling && frame % 64 == 0) {
+    if (cur_piece.falling && fmodf(GetTime(), 0.8) <= 0.016f) {
         volume_cooldown = CLAMP(volume_cooldown + 1, 0, COOLDOWN_MAX);
         if (volume_cooldown == COOLDOWN_MAX) {
             cur_piece.rotation.playing = false;
@@ -460,7 +461,7 @@ void anim_begin_enter_preview(MovementAnim *a)
     pattbuf_enqueue(&pattern_buffer, a->patt);
 }
 
-void falling_blocks_update(f32 dt, i32 frame)
+void falling_blocks_update(f32 dt)
 {
     if (!falling_blocks) {
         return;
@@ -501,12 +502,12 @@ void falling_blocks_update(f32 dt, i32 frame)
                 apool_add((Animation) {
                     .type = 1,
                     .anim_update = generic_movement_animation,
-                    .cur_frame = 0,
+                    .time = GetTime(),
                     .data = movement_anim_dup(&(MovementAnim) {
                         .init_pos = init_pos,
                         .end_pos = vec2(init_pos.x, GRID_POS.y + GRID_HEIGHT * GRID_CELL_SIDE),
-                        .vel = vec2(0, -2.f),
-                        .accel = vec2(0, 0.1f),
+                        .vel = vec2(0, FALLING_ANIM_VEL),
+                        .accel = vec2(0, FALLING_ANIM_ACCEL),
                         .patt = out,
                         .on_end = anim_begin_enter_preview,
                     })
@@ -516,7 +517,7 @@ void falling_blocks_update(f32 dt, i32 frame)
                 apool_add((Animation) {
                     .type = 0,
                     .anim_update = animate_score,
-                    .cur_frame = 0,
+                    .time = GetTime(),
                     .data = matchdup(&(MatchInfo) {
                         .pcount = out.count,
                         .pos = ivec2_plus(min, pattern_origin(&out)),
@@ -545,15 +546,13 @@ void falling_blocks_update(f32 dt, i32 frame)
     }
 }
 
-void game_update(f32 dt, i32 frame) {
-    state_timer++;
-
+void game_update(f32 dt, i32 frame_unused) {
     switch (cur_state) {
     case STATE_RUNNING:
-        falling_piece_update(frame);
-        volume_update(frame);
-        falling_blocks_update(dt, frame);
-        preview_update(&preview);
+        falling_piece_update();
+        volume_update();
+        falling_blocks_update(dt);
+        preview_update(&preview, dt);
         break;
     case STATE_GAMEOVER:
         if (IsKeyDown(KEY_ENTER) || IsKeyDown(KEY_Z)) {
@@ -624,12 +623,13 @@ void draw_preview(Preview *preview, Texture2D bg, i32 frame)
     }
 }
 
-bool generic_movement_animation(void *context, f32 dt, i32 frameno)
+bool generic_movement_animation(void *context, f32 dt, f32 init_time)
 {
     MovementAnim *p = (MovementAnim *) context;
 
-    Vector2 patt_pos_before = second_motion_equation(frameno-1, p->init_pos, p->vel, p->accel);
-    Vector2 patt_pos        = second_motion_equation(frameno, p->init_pos, p->vel, p->accel);
+    f32 time = GetTime() - init_time;
+    Vector2 patt_pos_before = second_motion_equation(time - dt, p->init_pos, p->vel, p->accel);
+    Vector2 patt_pos        = second_motion_equation(time     , p->init_pos, p->vel, p->accel);
 
     for (i32 i = 0; i < p->patt.count; i++) {
         Vector2 block_pos = Vector2Add(patt_pos, Vector2Scale(as_vec2(p->patt.coords[i]), GRID_CELL_SIDE));
@@ -667,7 +667,7 @@ void game_draw(f32 dt, i32 frame) {
         for (i32 i = 0; i < cur_piece.patt.count; i++) {
             Vector2 from_pos = Vector2Scale(as_vec2(cur_piece.patt.coords[i]), GRID_CELL_SIDE);
             Vector2 to_pos   = Vector2Scale(as_vec2(cur_piece.rotation.pattern.coords[i]), GRID_CELL_SIDE);
-            float t = (state_timer - cur_piece.rotation.init_timer) / 8.f;
+            float t = (GetTime() - cur_piece.rotation.init_timer) / ROTATION_TIME;
             Vector2 pos = Vector2Add(cur_piece.pos, Vector2Lerp(from_pos, to_pos, t));
             draw_block(Vector2Add(pos, GRID_POS), cur_piece.patt.color[i], block_frameno);
         }
