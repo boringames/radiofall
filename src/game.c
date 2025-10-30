@@ -208,20 +208,27 @@ static PatternVector grid_sweep() {
     return matched_patterns;
 }
 
+typedef enum PreviewState {
+    PREVIEW_EMPTY,
+    PREVIEW_ENTER_ANIM,
+    PREVIEW_FULL,
+    PREVIEW_EXIT_ANIM,
+} PreviewState;
+
 typedef struct Preview {
-    Rectangle box;
+    const Rectangle box;
     Pattern patt;
     Vector2 pos;
     Vector2 end_pos;
     Vector2 vel;
-    i32 state;
+    PreviewState state;
 } Preview;
 
 Preview preview = {
     .box = (Rectangle) { 8, 165, 64, 65 },
     .pos = (Vector2) {0},
     .vel = (Vector2) {0},
-    .state = 0,
+    .state = PREVIEW_EMPTY,
 };
 
 #define PREVIEW_VEL -100.f
@@ -247,7 +254,7 @@ static void real_init_cur_piece()
 void preview_update(Preview *preview, f32 dt)
 {
     switch (preview->state) {
-    case 0:
+    case PREVIEW_EMPTY:
         if (pattbuf_dequeue(&pattern_buffer, &preview->patt)) {
             for (i32 i = 0; i < cur_piece.patt.count; i++) {
                 preview->patt.color[i] = GetRandomValue(COLOR_BLUE, COLOR_COUNT - 1);
@@ -258,27 +265,27 @@ void preview_update(Preview *preview, f32 dt)
                                     preview->box.y + floorf((preview->box.height - patt_size.y) / 2.f));
             preview->pos = vec2(preview->end_pos.x, preview->box.y + preview->box.height);
             preview->vel = vec2(0, PREVIEW_VEL);
-            preview->state = 1;
+            preview->state = PREVIEW_ENTER_ANIM;
         }
         break;
-    case 1: {
+    case PREVIEW_ENTER_ANIM: {
         Vector2 newpos = Vector2Add(preview->pos, Vector2Scale(preview->vel, dt));
         if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
             preview->pos = preview->end_pos;
-            preview->state = 2;
+            preview->state = PREVIEW_FULL;
         } else {
             preview->pos = newpos;
         }
         break;
     }
-    case 2:
+    case PREVIEW_FULL:
         break;
-    case 3:
+    case PREVIEW_EXIT_ANIM:
         Vector2 newpos = Vector2Add(preview->pos, Vector2Scale(preview->vel, dt));
         if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
             cur_piece.patt = preview->patt;
             real_init_cur_piece();
-            preview->state = 0;
+            preview->state = PREVIEW_EMPTY;
         } else {
             preview->pos = newpos;
         }
@@ -287,11 +294,11 @@ void preview_update(Preview *preview, f32 dt)
 
 static void init_cur_piece()
 {
-    if (preview.state != 2) {
+    if (preview.state != PREVIEW_FULL) {
         pattern_generate(&cur_piece.patt);
         real_init_cur_piece();
     } else {
-        preview.state = 3;
+        preview.state = PREVIEW_EXIT_ANIM;
         preview.vel = vec2(0, PREVIEW_VEL);
         Vector2 patt_size = pattern_size(&preview.patt, GRID_CELL_SIDE);
         Vector2 patt_pos = vec2(preview.box.x + floorf((preview.box.width - patt_size.x) / 2.f),
@@ -596,7 +603,7 @@ void draw_preview(Preview *preview, Texture2D bg, i32 frame)
     Vector2 box_size = vec2(preview->box.width, preview->box.height);
     i32 bg_frame = ((frame / 8) % 2) * box_size.x;
     DrawTextureRec(bg, rec(vec2(bg_frame, 0), box_size), where, WHITE);
-    if (preview->state == 0) {
+    if (preview->state == PREVIEW_EMPTY) {
         return;
     }
 
@@ -705,7 +712,7 @@ void game_draw(f32 dt, i32 frame) {
     DrawTexture(field_ui, 0, 0, WHITE);
 
     // preview icons
-    if (preview.state != 0) {
+    if (preview.state != PREVIEW_EMPTY) {
         for (i32 i = 0; i < preview.patt.count; i++) {
             GridColor color = preview.patt.color[i];
             DrawTextureRec(preview_color_icons,
