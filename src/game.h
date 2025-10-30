@@ -4,7 +4,6 @@
 
 #define GRID_WIDTH 8
 #define GRID_HEIGHT 13
-#define GRID_CELL_SIDE 16
 
 typedef enum GridColor {
     COLOR_EMPTY,
