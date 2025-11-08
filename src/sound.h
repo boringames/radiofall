@@ -6,3 +6,4 @@
 void sound_set_enabled(bool enabled);
 bool sound_enabled();
 void sound_play(Sound sound);
+bool sound_playing(Sound sound);

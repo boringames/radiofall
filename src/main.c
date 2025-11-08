@@ -7,6 +7,7 @@
 #include "game.h"
 #include "title.h"
 #include "main.h"
+#include "sound.h"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
@@ -44,6 +45,7 @@ ScreenInfo screen_table[] = {
 };
 
 RenderTexture2D render_texture;
+
 
 void iterate(void *arg);
 

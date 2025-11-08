@@ -16,3 +16,8 @@ void sound_play(Sound sound)
 {
     if (_sound_enabled) PlaySound(sound);
 }
+
+bool sound_playing(Sound sound)
+{
+    return IsSoundPlaying(sound);
+}

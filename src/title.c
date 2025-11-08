@@ -36,6 +36,8 @@ Texture2D tapes;
 Sound menu_select_sfx;
 Sound menu_scroll_sfx;
 
+Sound menu_track;
+
 Shader text_shader;
 Font *text_font;
 
@@ -54,6 +56,8 @@ void title_load()
 
     menu_select_sfx = load_sound("resources/stereo_button.wav");
     menu_scroll_sfx = load_sound("resources/rotate.wav");
+    menu_track = load_sound("resources/give_her_shadow.wav");
+    SetSoundPitch(menu_track, 1.15f);
 
     text_shader = load_shader(NULL, "resources/text-outline-sdf.glsl");
     int codepoints[90-65];
@@ -78,6 +82,10 @@ f32 _arrow_press_cd = 0.0f;
 i32 _prev_menu_item = MENU_QUIT;
 void title_update(f32 dt, i32 frame)
 {
+    if (!sound_playing(menu_track)) {
+        sound_play(menu_track);
+    }
+
     if (_prev_menu_item != cur_menu_item) _enter_press_cd = 0;
     if (_enter_press_cd > 0.05f) {
         _enter_press_cd = 0;
@@ -94,7 +102,7 @@ void title_update(f32 dt, i32 frame)
                 quit = true;
             }
 
-            SetSoundVolume(menu_select_sfx, 0.2f);
+            SetSoundVolume(menu_select_sfx, 0.7f);
             sound_play(menu_select_sfx);
         }
     }
@@ -182,6 +190,7 @@ void title_draw(f32 dt, i32 frameno)
 GameScreen title_exit()
 {
     if (start) {
+        StopSound(menu_track);
         return SCREEN_GAMEPLAY;
     }
 

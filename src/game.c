@@ -27,6 +27,7 @@ Texture2D volume_img;
 
 Sound match_sfx;
 Sound rotate_sfx;
+Sound game_track;
 
 
 
@@ -236,6 +237,18 @@ bool generic_movement_animation(void *context, f32 dt, f32 init_time);
 // volume indicator. counts up, when it gets to VOLUME_COOLDOWN_MAX the game is over
 i32 volume_cooldown = 0;
 
+static void update_game_track_audio(void)
+{
+    float t = (float)volume_cooldown / (float)VOLUME_COOLDOWN_MAX;
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    const float min_vol   = 0.25f;
+    const float max_vol   = 1.0f;
+    float vol = min_vol + t * (max_vol - min_vol);
+
+    SetSoundVolume(game_track, vol);
+}
+
 void volume_update()
 {
     if (cur_piece.falling && fmodf(GetTime(), 0.8) <= 0.016f) {
@@ -319,7 +332,7 @@ static void preview_update(Preview *preview, f32 dt)
     }
     case PREVIEW_FULL:
         break;
-    case PREVIEW_EXIT_ANIM:
+    case PREVIEW_EXIT_ANIM: {
         Vector2 newpos = Vector2Add(preview->pos, Vector2Scale(preview->vel, dt));
         if (collision_line_point(preview->pos, newpos, preview->end_pos)) {
             cur_piece.patt = preview->patt;
@@ -328,6 +341,7 @@ static void preview_update(Preview *preview, f32 dt)
         } else {
             preview->pos = newpos;
         }
+    }
     }
 }
 
@@ -362,6 +376,8 @@ void game_load()
 
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
+    game_track = load_sound("resources/ingame.wav");
+    SetSoundPitch(game_track, 0.75f);
 
     hiscore_load();
 }
@@ -392,6 +408,7 @@ void game_enter() {
     total_matched = 0;
     init_cur_piece();
     falling_speed = 0.8f;
+    update_game_track_audio();
 }
 
 void cur_piece_update()
@@ -551,10 +568,14 @@ void falling_blocks_update(f32 dt)
 void game_update(f32 dt, i32 frame_unused) {
     switch (cur_state) {
     case STATE_RUNNING:
+        if (!sound_playing(game_track)) {
+            sound_play(game_track);
+        }
         cur_piece_update();
         volume_update();
         falling_blocks_update(dt);
         preview_update(&preview, dt);
+        update_game_track_audio();
         break;
     case STATE_GAMEOVER:
         if (IsKeyDown(KEY_ENTER) || IsKeyDown(KEY_Z)) {
@@ -658,7 +679,7 @@ void game_draw(f32 dt, i32 frame) {
     draw_preview(&preview, preview_bg, frame);
 
     // current piece
-    i32 block_frameno = block_frames[(frame/64) % COUNT_OF(block_frames)];
+    i32 block_frameno = block_frames[(frame/32) % COUNT_OF(block_frames)];
 
     if (cur_piece.falling) {
         if (!cur_piece.rotation.playing) {

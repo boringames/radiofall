@@ -13,6 +13,12 @@ for f in $src_dir/src/resources/*.wav; do
     cp $src_dir/src/resources/$name.wav $target_dir/resources/$name.wav
 done
 
+for f in $src_dir/src/resources/*.mp3; do
+    name=$(basename $f .mp3)
+    echo "copying over $target_dir/resources/$name.mp3"
+    cp $src_dir/src/resources/$name.mp3 $target_dir/resources/$name.mp3
+done
+
 for f in $src_dir/src/resources/*.glsl; do
     name=$(basename $f .glsl)
     echo "copying over $target_dir/resources/$name.glsl"
