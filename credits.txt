@@ -1,0 +1,2 @@
+src/resources/ingame.wav https://ad-sounds.itch.io/megabit2 Stage 01
+src/resources/title.wav https://chillmindscapes.itch.io/free-chiptune-music-pack-4-chillmindscapes Give Her Shadow
