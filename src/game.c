@@ -33,10 +33,16 @@ Sound match_sfx;
 Sound rotate_sfx;
 Sound game_track;
 
-
-
-// various misc. game state constant and variables
-#define SPEED_CHANGE 8
+/*
+    NOTE(rob): difficulty now increases based on how many total patterns you've matched.
+         every time total_matched crosses a multiple of FALLING_SPEED_CHANGE
+         the falling speed is reduced by multiplying it with FALLING_SPEED_FACTOR.
+         This continues until FALLING_SPEED_MIN is reached, which should prevent the game from becoming too fast/unplayable
+*/
+#define FALLING_SPEED_CHANGE  8
+#define FALLING_SPEED_INITIAL 0.8f
+#define FALLING_SPEED_MIN     0.20f
+#define FALLING_SPEED_FACTOR  0.75f
 
 i32 score = 0;
 i32 total_matched = 0;
@@ -433,7 +439,7 @@ void game_enter() {
     volume_cooldown = 0;
     total_matched = 0;
     init_cur_piece();
-    falling_speed = 0.8f;
+    falling_speed = FALLING_SPEED_INITIAL;
     update_game_track_audio();
 }
 
@@ -456,7 +462,7 @@ void cur_piece_update()
         memcpy(&cur_piece.rotation.pattern, &cur_piece.patt, sizeof(Pattern));
         pattern_rotate(&cur_piece.rotation.pattern, IsKeyPressed(KEY_Z));
         if (grid_is_valid_pos(cur_piece.pos, &cur_piece.rotation.pattern)) {
-            // rob: play sfx only it if a valid rotation occurs
+            // NOTE(rob): play sfx only it if a valid rotation occurs
             sound_play(rotate_sfx);
 
             cur_piece.rotation.playing = true;
@@ -575,8 +581,15 @@ void falling_blocks_update(f32 dt)
 
             i32 old_total_matched = total_matched;
             total_matched += matched_count;
-            if (old_total_matched / SPEED_CHANGE < total_matched / SPEED_CHANGE) {
-                falling_speed /= 2;
+
+            i32 old_level = old_total_matched / FALLING_SPEED_CHANGE;
+            i32 new_level = total_matched / FALLING_SPEED_CHANGE;
+
+            if (new_level > old_level && falling_speed > FALLING_SPEED_MIN) {
+                falling_speed *= FALLING_SPEED_FACTOR;
+                if (falling_speed < FALLING_SPEED_MIN) {
+                    falling_speed = FALLING_SPEED_MIN;
+                }
             }
 
             for (i32 y = 0; y < GRID_HEIGHT; y++) {
@@ -774,14 +787,38 @@ void game_draw(f32 dt, i32 frame) {
         volume_img,
         rec(vec2(0, 0), volume_size),
         rec(vec2(247 + volume_cooldown, 174 + volume_cooldown), volume_size),
-        vec2(0, 0), 0, WHITE
-    );
+        vec2(0, 0), 0, WHITE);
 
-    // game over menu
-    if (cur_state == STATE_GAMEOVER) {
-        draw_text_centered("GAME OVER",       vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4)),      0, WHITE, GetFontDefault(), 16, 1);
-        draw_text_centered("[Z] or [ENTER] restart", vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 20)), 0, WHITE, GetFontDefault(), 12,  1);
-        draw_text_centered("[X] menu",      vec2((f32)(RESOLUTION[0]/2), (f32)(RESOLUTION[1]/4 + 40)), 0, WHITE, GetFontDefault(), 12,  1);
+    if (cur_state == STATE_GAMEOVER)
+    {
+        Color overlay = Fade(BLACK, 0.6f);
+        DrawRectangle(0, 0, RESOLUTION[0], RESOLUTION[1], overlay);
+
+        float center_x = (float)RESOLUTION[0] / 2.0f;
+        float top_y = (float)RESOLUTION[1] / 4.0f;
+
+        Rectangle panel = {
+            center_x - 100.0f, // x
+            top_y - 16.0f,     // y
+            200.0f,            // width
+            72.0f              // height (enough room for 3 lines)
+        };
+
+        DrawRectangleRec(panel, Fade(BLACK, 0.8f));
+        DrawRectangleLinesEx(panel, 1.0f, Fade(WHITE, 0.4f)); // subtle border
+
+        // Now draw the text on top
+        draw_text_centered("GAME OVER",
+                           vec2(center_x, top_y),
+                           0, WHITE, GetFontDefault(), 16, 1);
+
+        draw_text_centered("[Z] or [ENTER] restart",
+                           vec2(center_x, top_y + 20),
+                           0, WHITE, GetFontDefault(), 12, 1);
+
+        draw_text_centered("[X] menu",
+                           vec2(center_x, top_y + 40),
+                           0, WHITE, GetFontDefault(), 12, 1);
     }
 }
 
