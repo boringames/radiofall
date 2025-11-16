@@ -25,6 +25,10 @@ Texture2D preview_color_icons;
 Texture2D blocks;
 Texture2D volume_img;
 
+Sound volume_drop_tick_sfx;
+Sound land_sfx;
+Sound spawn_sfx;
+Sound dash_sfx;
 Sound match_sfx;
 Sound rotate_sfx;
 Sound game_track;
@@ -244,7 +248,7 @@ static void update_game_track_audio(void)
     if (t > 1.0f) t = 1.0f;
     const float min_vol   = 0.25f;
     const float max_vol   = 1.0f;
-    float vol = min_vol + t * (max_vol - min_vol);
+    float vol = 1.0 - (min_vol + t * (max_vol - min_vol));
 
     SetSoundVolume(game_track, vol);
 }
@@ -253,6 +257,13 @@ void volume_update()
 {
     if (cur_piece.falling && fmodf(GetTime(), 0.8) <= 0.016f) {
         volume_cooldown = CLAMP(volume_cooldown + 1, 0, VOLUME_COOLDOWN_MAX);
+
+        GAME_LOG(stdout, "%d\n", volume_cooldown);
+        if (volume_cooldown > (i32)(VOLUME_COOLDOWN_MAX * 0.50f)) {
+            sound_play(volume_drop_tick_sfx);
+        }
+
+
         if (volume_cooldown == VOLUME_COOLDOWN_MAX) {
             cur_piece.rotation.playing = false;
             cur_state = STATE_GAMEOVER;
@@ -295,6 +306,8 @@ static void real_init_cur_piece()
     i32 x = pattern_max(&cur_piece.patt).x + 1;
     cur_piece.pos = vec2((GRID_WIDTH - x)/2 * 16.f, 0);
     cur_piece.rotation.playing = false;
+
+    sound_play(spawn_sfx);
 
     if (!grid_is_valid_pos(cur_piece.pos, &cur_piece.patt)) {
         cur_state = STATE_GAMEOVER;
@@ -374,10 +387,19 @@ void game_load()
     blocks = load_texture("resources/blocks.png");
     volume_img = load_texture("resources/volume.png");
 
+    volume_drop_tick_sfx = load_sound("resources/volume_drop_tick.wav");
+    land_sfx = load_sound("resources/land.wav");
+    spawn_sfx = load_sound("resources/spawn.wav");
+    dash_sfx = load_sound("resources/dash.wav");
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
     game_track = load_sound("resources/ingame.wav");
+
     SetSoundPitch(game_track, 0.75f);
+    SetSoundVolume(dash_sfx, 0.75f);
+    SetSoundVolume(land_sfx, 0.90f);
+    SetSoundVolume(volume_drop_tick_sfx, 0.25f);
+    SetSoundVolume(spawn_sfx, 0.50f);
 
     hiscore_load();
 }
@@ -390,8 +412,12 @@ void game_unload()
     UnloadTexture(blocks);
     UnloadTexture(volume_img);
 
+    UnloadSound(volume_drop_tick_sfx);
+    UnloadSound(land_sfx);
+    UnloadSound(dash_sfx);
     UnloadSound(match_sfx);
     UnloadSound(rotate_sfx);
+    UnloadSound(game_track);
 }
 
 void game_enter() {
@@ -427,10 +453,12 @@ void cur_piece_update()
             cur_piece.rotation.playing = false;
         }
     } else if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
-        sound_play(rotate_sfx);
         memcpy(&cur_piece.rotation.pattern, &cur_piece.patt, sizeof(Pattern));
         pattern_rotate(&cur_piece.rotation.pattern, IsKeyPressed(KEY_Z));
         if (grid_is_valid_pos(cur_piece.pos, &cur_piece.rotation.pattern)) {
+            // rob: play sfx only it if a valid rotation occurs
+            sound_play(rotate_sfx);
+
             cur_piece.rotation.playing = true;
             cur_piece.rotation.init_timer = GetTime();
         }
@@ -448,10 +476,15 @@ void cur_piece_update()
     if (!grid_is_valid_pos(Vector2Add(cur_piece.pos, vec2(xdir, 0)), &cur_piece.patt)) {
         xdir = 0;
     }
+    if (xdir != 0) {
+        sound_play(dash_sfx);
+    }
+
     i32 ydir = (fmodf(GetTime(), falling_speed) <= 0.016) * 4
              + (!block_down && IsKeyDown(KEY_DOWN)) * 6;
     cur_piece.pos = Vector2Add(cur_piece.pos, vec2(xdir, ydir));
     if (!grid_is_valid_pos(cur_piece.pos, &cur_piece.patt)) {
+        sound_play(land_sfx);
         cur_piece.pos.y = floorf(cur_piece.pos.y / 16.f) * 16.f;
 
         // add each block of the piece to the falling block list
@@ -583,6 +616,7 @@ void game_update(f32 dt, i32 frame_unused) {
             game_enter();
         } else if (IsKeyDown(KEY_X)) {
             hiscore_try_set(score);
+            StopSound(game_track);
             cur_state = STATE_END;
         }
         break;
@@ -756,5 +790,6 @@ GameScreen game_exit()
     if (cur_state == STATE_END) {
         return SCREEN_TITLE;
     }
+
     return SCREEN_UNKNOWN;
 }
