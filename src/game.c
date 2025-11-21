@@ -264,7 +264,6 @@ void volume_update()
     if (cur_piece.falling && fmodf(GetTime(), 0.8) <= 0.016f) {
         volume_cooldown = CLAMP(volume_cooldown + 1, 0, VOLUME_COOLDOWN_MAX);
 
-        GAME_LOG(stdout, "%d\n", volume_cooldown);
         if (volume_cooldown > (i32)(VOLUME_COOLDOWN_MAX * 0.50f)) {
             sound_play(volume_drop_tick_sfx);
         }
