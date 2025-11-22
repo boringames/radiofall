@@ -4,6 +4,8 @@
 
 A falling block game taking place inside an old radio cassette!
 
+![Radiofall Gameplay](./assets/gameplay.gif)
+
 ### Features
 
 - Gameplay similar to Tetris and Puyo Puyo
