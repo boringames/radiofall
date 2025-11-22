@@ -31,6 +31,7 @@ Sound spawn_sfx;
 Sound dash_sfx;
 Sound match_sfx;
 Sound rotate_sfx;
+Sound gameover_sfx;
 Sound game_track;
 
 /*
@@ -259,6 +260,13 @@ static void update_game_track_audio(void)
     SetSoundVolume(game_track, vol);
 }
 
+static void gameover()
+{
+    sound_play(gameover_sfx);
+    cur_piece.rotation.playing = false;
+    cur_state = STATE_GAMEOVER;
+}
+
 void volume_update()
 {
     if (cur_piece.falling && fmodf(GetTime(), 0.8) <= 0.016f) {
@@ -268,10 +276,8 @@ void volume_update()
             sound_play(volume_drop_tick_sfx);
         }
 
-
         if (volume_cooldown == VOLUME_COOLDOWN_MAX) {
-            cur_piece.rotation.playing = false;
-            cur_state = STATE_GAMEOVER;
+            gameover();
         }
     }
 }
@@ -315,7 +321,7 @@ static void real_init_cur_piece()
     sound_play(spawn_sfx);
 
     if (!grid_is_valid_pos(cur_piece.pos, &cur_piece.patt)) {
-        cur_state = STATE_GAMEOVER;
+        gameover();
     }
 
     cur_piece.falling = true;
@@ -398,13 +404,16 @@ void game_load()
     dash_sfx = load_sound("resources/dash.wav");
     match_sfx = load_sound("resources/match.wav");
     rotate_sfx = load_sound("resources/rotate.wav");
+    gameover_sfx = load_sound("resources/gameover.wav");
     game_track = load_sound("resources/ingame.wav");
 
     SetSoundPitch(game_track, 0.75f);
+    SetSoundPitch(gameover_sfx, 0.90f);
     SetSoundVolume(dash_sfx, 0.75f);
     SetSoundVolume(land_sfx, 0.90f);
     SetSoundVolume(volume_drop_tick_sfx, 0.25f);
     SetSoundVolume(spawn_sfx, 0.50f);
+    SetSoundVolume(gameover_sfx, 0.50f);
 
     hiscore_load();
 }
@@ -452,23 +461,6 @@ void cur_piece_update()
         block_down = false;
     }
 
-    if (cur_piece.rotation.playing) {
-        if (GetTime() - cur_piece.rotation.init_timer >= ROTATION_TIME) {
-            memcpy(&cur_piece.patt, &cur_piece.rotation.pattern, sizeof(Pattern));
-            cur_piece.rotation.playing = false;
-        }
-    } else if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
-        memcpy(&cur_piece.rotation.pattern, &cur_piece.patt, sizeof(Pattern));
-        pattern_rotate(&cur_piece.rotation.pattern, IsKeyPressed(KEY_Z));
-        if (grid_is_valid_pos(cur_piece.pos, &cur_piece.rotation.pattern)) {
-            // NOTE(rob): play sfx only it if a valid rotation occurs
-            sound_play(rotate_sfx);
-
-            cur_piece.rotation.playing = true;
-            cur_piece.rotation.init_timer = GetTime();
-        }
-    }
-
     bool left = IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT);
         // input_buffers[INPUT_LEFT] = true;
     // }
@@ -504,6 +496,23 @@ void cur_piece_update()
         cur_piece.falling = false;
         block_down = true;
         return;
+    }
+
+    if (cur_piece.rotation.playing) {
+        if (GetTime() - cur_piece.rotation.init_timer >= ROTATION_TIME) {
+            memcpy(&cur_piece.patt, &cur_piece.rotation.pattern, sizeof(Pattern));
+            cur_piece.rotation.playing = false;
+        }
+    } else if (IsKeyPressed(KEY_Z) != IsKeyPressed(KEY_X)) {
+        memcpy(&cur_piece.rotation.pattern, &cur_piece.patt, sizeof(Pattern));
+        pattern_rotate(&cur_piece.rotation.pattern, IsKeyPressed(KEY_Z));
+        if (grid_is_valid_pos(cur_piece.pos, &cur_piece.rotation.pattern)) {
+            // NOTE(rob): play sfx only it if a valid rotation occurs
+            sound_play(rotate_sfx);
+
+            cur_piece.rotation.playing = true;
+            cur_piece.rotation.init_timer = GetTime();
+        }
     }
 }
 
