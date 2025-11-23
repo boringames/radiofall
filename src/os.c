@@ -27,7 +27,7 @@ const char *home_dir() {
         return path;
     }
     return "C:\\";
-#elif defined(PLATOFM_WEB)
+#elif defined(PLATFORM_WEB)
     return "/home/web_user";
 #elif defined(__ANDROID__)
     const char* home = getenv("HOME");

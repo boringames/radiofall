@@ -17,6 +17,7 @@ char *text_insert(const char *text, const char *insert, int position)
 
     result[textLen + insertLen] = '\0';     // Make sure text string is valid!
 
+    printf("realpath = %s\n", result);
     return result;
 }
 
@@ -71,7 +72,14 @@ Font *load_font_sdf(const char *path, int baseSize, int *codepoints, int cp_coun
     Font *fontSDF = (Font *)malloc(sizeof(Font));
     fontSDF->baseSize = baseSize;
     fontSDF->glyphCount = cp_count;
+
+    // NOTE(rob): for some reason last param is required when compiling with emsc
+#if defined(PLATFORM_WEB)
+    fontSDF->glyphs = LoadFontData(fileData, fileSize, baseSize, codepoints, cp_count, FONT_SDF, NULL);
+#else
     fontSDF->glyphs = LoadFontData(fileData, fileSize, baseSize, codepoints, cp_count, FONT_SDF);
+#endif
+
     Image atlas = GenImageFontAtlas(fontSDF->glyphs, &fontSDF->recs, cp_count, baseSize, 0, 1);
     fontSDF->texture = LoadTextureFromImage(atlas);
     UnloadImage(atlas);

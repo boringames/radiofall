@@ -67,7 +67,7 @@ int main(void)
     screen_table[current_screen].enter();
 
 #if defined(PLATFORM_WEB)
-    emscripten_set_main_loop_arg(iterate, 60, 1);
+    emscripten_set_main_loop_arg(iterate, NULL, 60, true);
 #else
     SetTargetFPS(60);
     while (!window_should_close && !WindowShouldClose()) {
