@@ -38,8 +38,24 @@ Keyboard:
     make debug
     ```
 
-### License
+### Compiling to WASM
 
-This game sources are licensed under an unmodified zlib/libpng license, which is an OSI-certified, BSD-like license that allows static linking with closed source software. Check [LICENSE](LICENSE) for further details.
+- raylib project should be cloned and located at `../raylib`
+- then compile and link the raylib libraries for web platform via [this guide](https://github.com/raysan5/raylib/wiki/Working-for-Web-%28HTML5%29#21-command-line-compilation)
+- in radiofall root
+    ```bash
+    make release # just to have the resources resolved under build/release
+    cd src
+    PLATFORM=PLATFORM_WEB make
+    cd ..
+    mv src/radiofall.html src/radiofall.js src/radiofall.wasm build/release/radiofall/
+    ```
 
-*Copyright (c) 2025 chrg (chrg127), rhighs*
+### Running on web
+
+Spin up a local web server
+```
+python -m http.server 8000
+```
+
+then head to http://localhost:8000/build/release/radiofall/radiofall.html
