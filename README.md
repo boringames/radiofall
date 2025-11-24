@@ -49,6 +49,7 @@ Keyboard:
     BUILD_WEB_RESOURCES_PATH=../build/release/radiofall/resources PLATFORM=PLATFORM_WEB make
     cd ..
     mv src/radiofall.{html,js,wasm,data} build/release/radiofall/
+    mv build/release/radiofall/radiofall.html build/release/radiofall/index.html
     ```
 
 ### Running on web
