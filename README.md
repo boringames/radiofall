@@ -46,9 +46,9 @@ Keyboard:
     ```bash
     make release # just to have the resources resolved under build/release
     cd src
-    PLATFORM=PLATFORM_WEB make
+    BUILD_WEB_RESOURCES_PATH=../build/release/radiofall/resources PLATFORM=PLATFORM_WEB make
     cd ..
-    mv src/radiofall.html src/radiofall.js src/radiofall.wasm build/release/radiofall/
+    mv src/radiofall.{html,js,wasm,data} build/release/radiofall/
     ```
 
 ### Running on web

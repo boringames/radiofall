@@ -61,7 +61,7 @@ BUILD_MODE            ?= RELEASE
 # PLATFORM_WEB: Default properties
 BUILD_WEB_ASYNCIFY    ?= FALSE
 BUILD_WEB_SHELL       ?= minshell.html
-BUILD_WEB_HEAP_SIZE   ?= 128MB
+BUILD_WEB_HEAP_SIZE   ?= 512MB
 BUILD_WEB_STACK_SIZE  ?= 1MB
 BUILD_WEB_ASYNCIFY_STACK_SIZE ?= 1048576
 BUILD_WEB_RESOURCES   ?= FALSE
@@ -273,7 +273,7 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     # --preload-file resources   # specify a resources folder for data compilation
     # --source-map-base          # allow debugging in browser with source map
     # --shell-file shell.html    # define a custom shell .html and output extension
-    LDFLAGS += -sUSE_GLFW=3 -sTOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -sSTACK_SIZE=$(BUILD_WEB_STACK_SIZE) -sFORCE_FILESYSTEM=1 -sMINIFY_HTML=0
+    LDFLAGS += -sUSE_GLFW=3 -sTOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -sSTACK_SIZE=$(BUILD_WEB_STACK_SIZE) -sFORCE_FILESYSTEM=1 -sMINIFY_HTML=0 -sALLOW_MEMORY_GROWTH=1
     
     # Build using asyncify
     ifeq ($(BUILD_WEB_ASYNCIFY),TRUE)
@@ -282,7 +282,7 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
 
     # Add resources building if required
     ifeq ($(BUILD_WEB_RESOURCES),TRUE)
-        LDFLAGS += --preload-file $(BUILD_WEB_RESOURCES_PATH)
+        LDFLAGS += --preload-file $(BUILD_WEB_RESOURCES_PATH)@resources
     endif
 
     # Add debug mode flags if required
